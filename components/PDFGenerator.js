@@ -138,13 +138,16 @@ const PDFGenerator = ({
   const handlePrint = () => {
     const element = document.getElementById('pdf-content');
     if (!element) {
-      alert('PDF content element not found');
+      console.error('PDF content element not found');
       return;
     }
 
     const printWindow = window.open('', '', 'width=900,height=800');
-    printWindow.document.write(element.innerHTML);
+    const sanitized = element.cloneNode(true);
+    sanitized.querySelectorAll('script').forEach((s) => s.remove());
+    printWindow.document.write('<!DOCTYPE html><html><head><title>Print</title></head><body></body></html>');
     printWindow.document.close();
+    printWindow.document.body.appendChild(printWindow.document.adoptNode(sanitized));
     printWindow.focus();
     setTimeout(() => printWindow.print(), 250);
   };

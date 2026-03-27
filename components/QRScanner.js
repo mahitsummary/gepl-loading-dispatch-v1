@@ -18,8 +18,8 @@ const QRScanner = ({ onScan, onError = null }) => {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 640 },
+            height: { ideal: 480 },
           },
         });
 
@@ -66,10 +66,11 @@ const QRScanner = ({ onScan, onError = null }) => {
   const decodeQR = async (imageSrc) => {
     try {
       if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
-        const barcodeDetector = new window.BarcodeDetector();
-        const barcodes = await barcodeDetector.detect(
-          new Image({ src: imageSrc })
-        );
+        const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const img = new Image();
+        img.src = imageSrc;
+        await img.decode();
+        const barcodes = await barcodeDetector.detect(img);
 
         if (barcodes && barcodes.length > 0) {
           const qrData = barcodes[0].rawValue;
@@ -146,7 +147,7 @@ const QRScanner = ({ onScan, onError = null }) => {
           type="text"
           placeholder="Paste QR data here..."
           onBlur={handleManualInput}
-          onKeyPress={(e) => {
+          onKeyDown={(e) => {
             if (e.key === 'Enter') {
               handleManualInput(e);
             }

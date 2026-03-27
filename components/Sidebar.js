@@ -15,6 +15,77 @@ import {
   X,
 } from 'lucide-react';
 
+const menuItems = {
+  dashboard: {
+    label: 'DASHBOARD',
+    icon: LayoutDashboard,
+    items: [{ label: 'Dashboard', href: '/' }],
+  },
+  masters: {
+    label: 'MASTERS',
+    icon: Package,
+    items: [
+      { label: 'Item Master', href: '/masters/items' },
+      { label: 'Vendor Master', href: '/masters/vendors' },
+      { label: 'Warehouse Master', href: '/masters/warehouses' },
+      { label: 'Production Plants', href: '/masters/plants' },
+      { label: 'Supervisor Master', href: '/masters/supervisors' },
+      { label: 'Driver Master', href: '/masters/drivers' },
+      { label: 'Vehicle Master', href: '/masters/vehicles' },
+    ],
+  },
+  inward: {
+    label: 'INWARD',
+    icon: TrendingUp,
+    items: [{ label: 'Inward from Purchase (GRN)', href: '/inward/grn' }],
+  },
+  movement: {
+    label: 'MATERIAL MOVEMENT',
+    icon: Truck,
+    items: [
+      { label: 'Material Requisition', href: '/movement/requisition' },
+      { label: 'Internal Dispatch', href: '/movement/dispatch' },
+      { label: 'Internal Receipt', href: '/movement/receipt' },
+    ],
+  },
+  reconciliation: {
+    label: 'RECONCILIATION',
+    icon: FileText,
+    items: [
+      { label: 'Dispatch vs Receipt Reco', href: '/reconciliation/dispatch-receipt' },
+      { label: 'Production Reco', href: '/reconciliation/production' },
+    ],
+  },
+  production: {
+    label: 'PRODUCTION',
+    icon: Package,
+    items: [
+      { label: 'Issue to Production', href: '/production/issue' },
+      { label: 'Production Output', href: '/production/output' },
+    ],
+  },
+  stock: {
+    label: 'STOCK',
+    icon: Package,
+    items: [
+      { label: 'Stock Overview', href: '/stock/overview' },
+      { label: 'Goods in Transit', href: '/stock/in-transit' },
+      { label: 'FG Stock', href: '/stock/fg' },
+      { label: 'Rejected Stock', href: '/stock/rejected' },
+    ],
+  },
+  reports: {
+    label: 'REPORTS',
+    icon: FileText,
+    items: [{ label: 'Supervisor Scorecard', href: '/reports/scorecard' }],
+  },
+  settings: {
+    label: 'SETTINGS',
+    icon: Settings,
+    items: [{ label: 'Add Masters', href: '/settings/add-masters' }],
+  },
+};
+
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,77 +100,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     reports: false,
     settings: false,
   });
-
-  const menuItems = {
-    dashboard: {
-      label: 'DASHBOARD',
-      icon: LayoutDashboard,
-      items: [{ label: 'Dashboard', href: '/' }],
-    },
-    masters: {
-      label: 'MASTERS',
-      icon: Package,
-      items: [
-        { label: 'Item Master', href: '/masters/items' },
-        { label: 'Vendor Master', href: '/masters/vendors' },
-        { label: 'Warehouse Master', href: '/masters/warehouses' },
-        { label: 'Production Plants', href: '/masters/plants' },
-        { label: 'Supervisor Master', href: '/masters/supervisors' },
-        { label: 'Driver Master', href: '/masters/drivers' },
-        { label: 'Vehicle Master', href: '/masters/vehicles' },
-      ],
-    },
-    inward: {
-      label: 'INWARD',
-      icon: TrendingUp,
-      items: [{ label: 'Inward from Purchase (GRN)', href: '/inward/grn' }],
-    },
-    movement: {
-      label: 'MATERIAL MOVEMENT',
-      icon: Truck,
-      items: [
-        { label: 'Material Requisition', href: '/movement/requisition' },
-        { label: 'Internal Dispatch', href: '/movement/dispatch' },
-        { label: 'Internal Receipt', href: '/movement/receipt' },
-      ],
-    },
-    reconciliation: {
-      label: 'RECONCILIATION',
-      icon: FileText,
-      items: [
-        { label: 'Dispatch vs Receipt Reco', href: '/reconciliation/dispatch-receipt' },
-        { label: 'Production Reco', href: '/reconciliation/production' },
-      ],
-    },
-    production: {
-      label: 'PRODUCTION',
-      icon: Package,
-      items: [
-        { label: 'Issue to Production', href: '/production/issue' },
-        { label: 'Production Output', href: '/production/output' },
-      ],
-    },
-    stock: {
-      label: 'STOCK',
-      icon: Package,
-      items: [
-        { label: 'Stock Overview', href: '/stock/overview' },
-        { label: 'Goods in Transit', href: '/stock/in-transit' },
-        { label: 'FG Stock', href: '/stock/fg' },
-        { label: 'Rejected Stock', href: '/stock/rejected' },
-      ],
-    },
-    reports: {
-      label: 'REPORTS',
-      icon: FileText,
-      items: [{ label: 'Supervisor Scorecard', href: '/reports/scorecard' }],
-    },
-    settings: {
-      label: 'SETTINGS',
-      icon: Settings,
-      items: [{ label: 'Add Masters', href: '/settings/add-masters' }],
-    },
-  };
 
   const toggleMenu = (menuKey) => {
     setExpandedMenus({

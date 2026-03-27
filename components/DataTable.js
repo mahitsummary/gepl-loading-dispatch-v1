@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Search, ChevronUp, ChevronDown, Loader } from 'lucide-react';
 
-const DataTable = ({
+const DataTable = memo(function DataTable({
   columns,
   data = [],
   isLoading = false,
@@ -15,7 +15,7 @@ const DataTable = ({
   onRowClick = null,
   emptyMessage = 'No data available',
   rowClassName = '',
-}) => {
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({
     key: null,
@@ -154,7 +154,7 @@ const DataTable = ({
             {paginatedData.length > 0 ? (
               paginatedData.map((row, index) => (
                 <tr
-                  key={index}
+                  key={row.id || row._id || index}
                   onClick={() => onRowClick && onRowClick(row)}
                   className={`border-b border-secondary-200 hover:bg-secondary-50 transition-colors ${
                     onRowClick ? 'cursor-pointer' : ''
@@ -233,6 +233,6 @@ const DataTable = ({
       )}
     </div>
   );
-};
+});
 
 export default DataTable;
