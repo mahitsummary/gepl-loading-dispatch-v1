@@ -141,6 +141,12 @@ function routeRequest(action, params) {
     case 'addWarehouse':
       logAudit(userEmail, 'CREATE', 'Warehouse Master', '', JSON.stringify(params));
       return { success: true, data: addWarehouse(params) };
+    case 'updateWarehouse':
+      logAudit(userEmail, 'UPDATE', 'Warehouse Master', params.id || params.warehouseCode, JSON.stringify(params));
+      return { success: true, data: updateWarehouse(params) };
+    case 'deleteWarehouse':
+      logAudit(userEmail, 'DELETE', 'Warehouse Master', params.id || params.warehouseCode, '');
+      return { success: true, data: deleteWarehouse(params.id || params.warehouseCode) };
 
     // Plant operations
     case 'getPlants':
@@ -148,6 +154,12 @@ function routeRequest(action, params) {
     case 'addPlant':
       logAudit(userEmail, 'CREATE', 'Production plant master', '', JSON.stringify(params));
       return { success: true, data: addPlant(params) };
+    case 'updatePlant':
+      logAudit(userEmail, 'UPDATE', 'Production plant master', params.id || params.plantCode, JSON.stringify(params));
+      return { success: true, data: updatePlant(params) };
+    case 'deletePlant':
+      logAudit(userEmail, 'DELETE', 'Production plant master', params.id || params.plantCode, '');
+      return { success: true, data: deletePlant(params.id || params.plantCode) };
 
     // Supervisor operations
     case 'getSupervisors':
@@ -169,8 +181,11 @@ function routeRequest(action, params) {
       logAudit(userEmail, 'CREATE', 'Driver Master', '', JSON.stringify(params));
       return { success: true, data: addDriver(params) };
     case 'updateDriver':
-      logAudit(userEmail, 'UPDATE', 'Driver Master', params.DriverID, JSON.stringify(params));
+      logAudit(userEmail, 'UPDATE', 'Driver Master', params.id || params.DriverID, JSON.stringify(params));
       return { success: true, data: updateDriver(params) };
+    case 'deleteDriver':
+      logAudit(userEmail, 'DELETE', 'Driver Master', params.id || params.DriverID, '');
+      return { success: true, data: deleteDriver(params.id || params.DriverID) };
 
     // Vehicle operations
     case 'getVehicles':
@@ -179,8 +194,11 @@ function routeRequest(action, params) {
       logAudit(userEmail, 'CREATE', 'Vehicle Master', '', JSON.stringify(params));
       return { success: true, data: addVehicle(params) };
     case 'updateVehicle':
-      logAudit(userEmail, 'UPDATE', 'Vehicle Master', params.VehicleNumber, JSON.stringify(params));
+      logAudit(userEmail, 'UPDATE', 'Vehicle Master', params.id || params.VehicleNumber, JSON.stringify(params));
       return { success: true, data: updateVehicle(params) };
+    case 'deleteVehicle':
+      logAudit(userEmail, 'DELETE', 'Vehicle Master', params.id || params.VehicleNumber, '');
+      return { success: true, data: deleteVehicle(params.id || params.VehicleNumber) };
 
     // GRN operations
     case 'createGRN':
@@ -1877,6 +1895,82 @@ function deleteRowFromSheet(sheetName, keyField, keyValue) {
     Logger.log('Error deleting row: ' + e);
     return false;
   }
+}
+
+// ==================== WAREHOUSE CRUD ====================
+
+/**
+ * Update an existing warehouse
+ */
+function updateWarehouse(params) {
+  const keyValue = params.id || params.warehouseCode;
+  updateRowInSheet('Warehouse Master', 'Warehouse Code', keyValue, {
+    'Warehouse Name': params.warehouseName || params['Warehouse Name'] || '',
+    'Location': params.location || '',
+    'City': params.city || '',
+    'State': params.state || '',
+    'Pincode': params.pincode || '',
+    'Manager Name': params.managerName || '',
+    'Phone': params.phone || '',
+    'Capacity': params.capacity || ''
+  });
+  return { success: true };
+}
+
+/**
+ * Delete a warehouse (soft delete)
+ */
+function deleteWarehouse(warehouseCode) {
+  updateRowInSheet('Warehouse Master', 'Warehouse Code', warehouseCode, { 'Status': 'Inactive' });
+  return { success: true };
+}
+
+// ==================== PLANT CRUD ====================
+
+/**
+ * Update an existing plant
+ */
+function updatePlant(params) {
+  const keyValue = params.id || params.plantCode;
+  updateRowInSheet('Production plant master', 'Plant Code', keyValue, {
+    'Plant Name': params.plantName || params['Plant Name'] || '',
+    'Location': params.location || '',
+    'City': params.city || '',
+    'State': params.state || '',
+    'Pincode': params.pincode || '',
+    'Manager Name': params.managerName || '',
+    'Phone': params.phone || '',
+    'Production Capacity': params.productionCapacity || ''
+  });
+  return { success: true };
+}
+
+/**
+ * Delete a plant (soft delete)
+ */
+function deletePlant(plantCode) {
+  updateRowInSheet('Production plant master', 'Plant Code', plantCode, { 'Status': 'Inactive' });
+  return { success: true };
+}
+
+// ==================== DRIVER CRUD ====================
+
+/**
+ * Delete a driver (soft delete)
+ */
+function deleteDriver(driverId) {
+  updateRowInSheet('Driver Master', 'DriverID', driverId, { 'Status': 'Inactive' });
+  return { success: true };
+}
+
+// ==================== VEHICLE CRUD ====================
+
+/**
+ * Delete a vehicle (soft delete)
+ */
+function deleteVehicle(vehicleId) {
+  updateRowInSheet('Vehicle Master', 'VehicleNumber', vehicleId, { 'Status': 'Inactive' });
+  return { success: true };
 }
 
 // ==================== TEST FUNCTION ====================
