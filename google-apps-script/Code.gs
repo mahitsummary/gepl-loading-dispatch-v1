@@ -348,7 +348,192 @@ function routeRequest(action, params) {
 // ==================== UTILITY FUNCTIONS ====================
 
 /**
- * Get all data from a specific sheet
+ * Column name mapping: Sheet column headers -> camelCase keys expected by frontend
+ */
+const COLUMN_MAP = {
+  // Item Master
+  'ItemCode': 'itemCode',
+  'Foreign Name': 'foreignName',
+  'Item Description': 'itemName',
+  'Sub Category': 'category',
+  'ItemsGroupCode': 'itemsGroupCode',
+  'Shipping': 'shipping',
+  'Manufacturer': 'manufacturer',
+  'Regions Of Origin': 'regionsOfOrigin',
+  'Status': 'status',
+  'Manage Item': 'uom',
+  'Item Category': 'itemCategory',
+  'Material Type': 'hsn',
+
+  // Vendor & Customer Master
+  'BP Name': 'vendorName',
+  'BP Code': 'vendorCode',
+  'BP Type': 'bpType',
+  'Branch ID': 'branchId',
+  'BP group': 'bpGroup',
+  'Currency': 'currency',
+  'GSTIN': 'gstin',
+  'Street': 'address',
+  'Block': 'block',
+  'Building/Floor/Room': 'buildingFloorRoom',
+  'Zip Code': 'zipCode',
+  'City': 'city',
+  'State': 'state',
+  'Country': 'country',
+  'Phone': 'phone',
+  'Email': 'email',
+  'Contact Person': 'contactPerson',
+
+  // Warehouse Master
+  'Warehouse Code': 'warehouseCode',
+  'Warehouse Name': 'warehouseName',
+  'Internal Key': 'internalKey',
+  'Group Code': 'groupCode',
+  'Inventory Account': 'inventoryAccount',
+  'Cost of Goods Sold Account': 'cogsAccount',
+  'Allocation Account': 'allocationAccount',
+  'Locked': 'locked',
+  'Data Source': 'dataSource',
+  'User Signature': 'userSignature',
+  'Revenue Account': 'revenueAccount',
+
+  // Production plant master
+  'Loc No': 'plantCode',
+  'Location': 'plantName',
+
+  // Supervisor Master
+  'SupervisorID': 'id',
+  'Name': 'supervisorName',
+  'Address': 'assignedWarehouse',
+  'Role': 'department',
+  'DateAdded': 'dateAdded',
+
+  // Driver Master
+  'DriverID': 'id',
+  'LicenseNumber': 'licenseNumber',
+
+  // Vehicle Master
+  'VehicleNumber': 'vehicleNumber',
+  'VehicleType': 'vehicleType',
+  'VehicleSize': 'manufacturer',
+  'OwnerName': 'ownerName',
+
+  // GRN
+  'GRNNumber': 'GRNNumber',
+  'GatePassNumber': 'GatePassNumber',
+  'VendorCode': 'VendorCode',
+  'VendorName': 'VendorName',
+  'PONumber': 'PONumber',
+  'PODate': 'PODate',
+  'CommittedDeliveryDate': 'CommittedDeliveryDate',
+  'VendorDocNumber': 'VendorDocNumber',
+  'VendorDocDate': 'VendorDocDate',
+  'ReceiptDate': 'ReceiptDate',
+  'EntryDate': 'EntryDate',
+  'ReceiverName': 'ReceiverName',
+  'TotalItems': 'TotalItems',
+  'Remarks': 'Remarks',
+
+  // Stock Master
+  'WarehouseCode': 'warehouse',
+  'WarehouseName': 'warehouseName',
+  'ItemName': 'itemName',
+  'UOM': 'uom',
+  'QtyInPacks': 'qtyInPacks',
+  'TotalQty': 'quantity',
+  'LastUpdated': 'lastUpdated',
+
+  // Goods In Transit
+  'DCNumber': 'dcNumber',
+  'DispatchDate': 'dispatchDate',
+  'LocationFrom': 'sourceWarehouse',
+  'LocationTo': 'destinationPlant',
+
+  // Dispatch
+  'SupervisorName': 'supervisorName',
+  'DriverName': 'driverName',
+  'Date': 'dispatchDate',
+  'LocationFromAddress': 'locationFromAddress',
+  'LocationFromGST': 'locationFromGST',
+  'LocationFromPhone': 'locationFromPhone',
+  'LocationToAddress': 'locationToAddress',
+  'LocationToGST': 'locationToGST',
+  'LocationToPhone': 'locationToPhone',
+
+  // Receipts
+  'ReceiptNumber': 'receiptNumber',
+  'DeliveryChallanDate': 'deliveryChallanDate',
+
+  // Requisition
+  'RequisitionNumber': 'requisitionNumber',
+  'RequestedBy': 'requestedBy',
+  'RequestedDate': 'requestedDate',
+  'ProductionDate': 'productionDate',
+  'ProductionPlant': 'productionPlant',
+  'DestinationWarehouse': 'destinationWarehouse',
+  'DateCreated': 'dateCreated',
+
+  // Requisition Line Items
+  'LineNumber': 'lineNumber',
+  'QtyRequired': 'totalQtyRequired',
+  'QtyDispatched': 'qtyDispatched',
+  'QtyPending': 'qtyPending',
+
+  // Dispatch/Receipt Line Items
+  'QtyPerPack': 'qtyPerPack',
+  'NumberOfPacks': 'numberOfPacks',
+  'BatchID': 'batchId',
+  'GRNStickerGenerated': 'grnStickerGenerated',
+  'GRNStickerStuck': 'grnStickerStuck',
+  'GRNStickerPut': 'grnStickerPut',
+
+  // Production
+  'IssueNumber': 'issueNumber',
+  'IssueDate': 'issueDate',
+  'IssuedBy': 'issuedBy',
+  'QtyIssued': 'quantity',
+  'OutputNumber': 'outputNumber',
+  'FGItemCode': 'itemCode',
+  'FGItemName': 'itemName',
+  'QtyProduced': 'quantity',
+  'RMItemCode': 'rmItemCode',
+  'RMQtyUsedPerUnit': 'rmQtyUsedPerUnit',
+
+  // FG Stock
+  'Qty': 'quantity',
+
+  // Rejected Stock
+  'VirtualWarehouse': 'virtualWarehouse',
+  'RejectionDate': 'rejectionDate',
+
+  // Reconciliation
+  'RecoID': 'recoId',
+  'DispatchQty': 'dispatchQty',
+  'ReceiptQty': 'receiptQty',
+  'Variance': 'variance',
+  'VarianceType': 'varianceType',
+  'ResolvedDate': 'resolvedDate',
+
+  // Supervisor Scores
+  'TotalDispatches': 'tasksCompleted',
+  'TotalReceipts': 'totalReceipts',
+  'AccuracyScore': 'accuracyScore',
+  'VarianceCount': 'varianceCount',
+  'Rank': 'rank',
+
+  // Gate Pass
+  'Type': 'type'
+};
+
+/**
+ * Convert a sheet header to its mapped camelCase key
+ */
+function mapColumnName(header) {
+  return COLUMN_MAP[header] || header;
+}
+
+/**
+ * Get all data from a specific sheet with camelCase keys
  */
 function getSheetData(sheetName) {
   try {
@@ -364,7 +549,12 @@ function getSheetData(sheetName) {
     for (let i = 1; i < data.length; i++) {
       const row = {};
       for (let j = 0; j < headers.length; j++) {
-        row[headers[j]] = data[i][j];
+        const key = mapColumnName(headers[j]);
+        row[key] = data[i][j];
+        // Also keep original key for internal lookups
+        if (key !== headers[j]) {
+          row[headers[j]] = data[i][j];
+        }
       }
       rows.push(row);
     }
@@ -629,16 +819,16 @@ function getWarehouses() {
  */
 function addWarehouse(params) {
   const newWarehouse = {
-    'Warehouse Code': params.WarehouseCode,
-    'Warehouse Name': params.WarehouseName,
-    'Internal Key': params.InternalKey || '',
-    'Group Code': params.GroupCode || '',
-    'Inventory Account': params.InventoryAccount || '',
-    'Cost of Goods Sold Account': params.COGSAccount || '',
-    'Allocation Account': params.AllocationAccount || '',
+    'Warehouse Code': params.WarehouseCode || params.warehouseCode || generateSequentialID('WH', 'Warehouse Master', 'Warehouse Code'),
+    'Warehouse Name': params.WarehouseName || params.warehouseName || '',
+    'Internal Key': params.InternalKey || params.location || '',
+    'Group Code': params.GroupCode || params.city || '',
+    'Inventory Account': params.InventoryAccount || params.state || '',
+    'Cost of Goods Sold Account': params.COGSAccount || params.pincode || '',
+    'Allocation Account': params.AllocationAccount || params.managerName || '',
     'Locked': params.Locked || 'No',
-    'Data Source': params.DataSource || '',
-    'User Signature': params.UserSignature || '',
+    'Data Source': params.DataSource || params.phone || '',
+    'User Signature': params.UserSignature || params.capacity || '',
     'Revenue Account': params.RevenueAccount || ''
   };
 
@@ -660,10 +850,10 @@ function getPlants() {
  */
 function addPlant(params) {
   const newPlant = {
-    'Loc No': params.LocNo,
-    'Location': params.Location,
-    'Street': params.Street || '',
-    'Block': params.Block || ''
+    'Loc No': params.LocNo || params.plantCode || generateSequentialID('PLT', 'Production plant master', 'Loc No'),
+    'Location': params.Location || params.plantName || '',
+    'Street': params.Street || params.location || params.city || '',
+    'Block': params.Block || params.state || ''
   };
 
   appendRowToSheet('Production plant master', newPlant);
@@ -734,12 +924,12 @@ function addDriver(params) {
 
   const newDriver = {
     'DriverID': driverID,
-    'Name': params.Name,
-    'Phone': params.Phone || '',
-    'LicenseNumber': params.LicenseNumber || '',
-    'Address': params.Address || '',
-    'Email': params.Email || '',
-    'Status': params.Status || 'Active',
+    'Name': params.Name || params.driverName || '',
+    'Phone': params.Phone || params.phone || '',
+    'LicenseNumber': params.LicenseNumber || params.licenseNumber || '',
+    'Address': params.Address || params.address || '',
+    'Email': params.Email || params.email || '',
+    'Status': params.Status || params.status || 'Active',
     'DateAdded': new Date()
   };
 
@@ -751,13 +941,14 @@ function addDriver(params) {
  * Update driver
  */
 function updateDriver(params) {
-  updateRowInSheet('Driver Master', 'DriverID', params.DriverID, {
-    'Name': params.Name,
-    'Phone': params.Phone,
-    'LicenseNumber': params.LicenseNumber,
-    'Address': params.Address,
-    'Email': params.Email,
-    'Status': params.Status
+  const keyValue = params.DriverID || params.id;
+  updateRowInSheet('Driver Master', 'DriverID', keyValue, {
+    'Name': params.Name || params.driverName || '',
+    'Phone': params.Phone || params.phone || '',
+    'LicenseNumber': params.LicenseNumber || params.licenseNumber || '',
+    'Address': params.Address || params.address || '',
+    'Email': params.Email || params.email || '',
+    'Status': params.Status || params.status || 'Active'
   });
 
   return { success: true };
@@ -777,11 +968,11 @@ function getVehicles() {
  */
 function addVehicle(params) {
   const newVehicle = {
-    'VehicleNumber': params.VehicleNumber,
-    'VehicleType': params.VehicleType || 'Truck',
-    'VehicleSize': params.VehicleSize || '',
-    'OwnerName': params.OwnerName || '',
-    'Status': params.Status || 'Active',
+    'VehicleNumber': params.VehicleNumber || params.vehicleNumber || '',
+    'VehicleType': params.VehicleType || params.vehicleType || 'Truck',
+    'VehicleSize': params.VehicleSize || params.manufacturer || '',
+    'OwnerName': params.OwnerName || params.ownerName || '',
+    'Status': params.Status || params.status || 'Active',
     'DateAdded': new Date()
   };
 
@@ -793,11 +984,12 @@ function addVehicle(params) {
  * Update vehicle
  */
 function updateVehicle(params) {
-  updateRowInSheet('Vehicle Master', 'VehicleNumber', params.VehicleNumber, {
-    'VehicleType': params.VehicleType,
-    'VehicleSize': params.VehicleSize,
-    'OwnerName': params.OwnerName,
-    'Status': params.Status
+  const keyValue = params.VehicleNumber || params.vehicleNumber || params.id;
+  updateRowInSheet('Vehicle Master', 'VehicleNumber', keyValue, {
+    'VehicleType': params.VehicleType || params.vehicleType || '',
+    'VehicleSize': params.VehicleSize || params.manufacturer || '',
+    'OwnerName': params.OwnerName || params.ownerName || '',
+    'Status': params.Status || params.status || 'Active'
   });
 
   return { success: true };
