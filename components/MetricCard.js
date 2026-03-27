@@ -1,8 +1,9 @@
 'use client';
 
+import { memo } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
-const MetricCard = ({
+const MetricCard = memo(function MetricCard({
   title,
   value,
   unit = '',
@@ -11,7 +12,7 @@ const MetricCard = ({
   icon: Icon = null,
   color = 'primary',
   onClick = null,
-}) => {
+}) {
   const colorClasses = {
     primary: 'bg-primary-50 border-primary-200',
     blue: 'bg-blue-50 border-blue-200',
@@ -70,6 +71,6 @@ const MetricCard = ({
       </div>
     </div>
   );
-};
+});
 
 export default MetricCard;

@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Plus, Trash2, Eye, Download, AlertCircle, CheckCircle, Clock, X } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FormField from '@/components/FormField';
 import AutoComplete from '@/components/AutoComplete';
 import StatusBadge from '@/components/StatusBadge';
-import QRScanner from '@/components/QRScanner';
-import QRGenerator from '@/components/QRGenerator';
+const QRScanner = dynamic(() => import('@/components/QRScanner'), { ssr: false });
+const QRGenerator = dynamic(() => import('@/components/QRGenerator'), { ssr: false });
 import api from '@/lib/api';
 import { formatDate, parseQRData, generateQRData, getCurrentDate } from '@/lib/utils';
 

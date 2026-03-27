@@ -13,7 +13,7 @@ import {
   Eye,
 } from 'lucide-react';
 import api from '@/lib/api';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatCurrency, formatNumber } from '@/lib/utils';
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState({
@@ -22,6 +22,13 @@ export default function Dashboard() {
     openRequisitions: 0,
     goodsInTransit: 0,
     pendingReconciliation: 0,
+  });
+
+  const [stockOverview, setStockOverview] = useState({
+    availableStock: 0,
+    inTransit: 0,
+    fgStock: 0,
+    rejected: 0,
   });
 
   const [recentActivity, setRecentActivity] = useState([]);
@@ -37,11 +44,25 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      const dashboardMetrics = await api.fetchDashboardMetrics();
-      const activity = await api.fetchRecentActivity(10);
+      const [dashboardMetrics, activity, stock, transit, fgStock, rejectedStock] = await Promise.all([
+        api.getDashboardStats().catch(() => null),
+        api.fetchRecentActivity(10).catch(() => []),
+        api.getOverallStock().catch(() => []),
+        api.getGoodsInTransit().catch(() => []),
+        api.getFGStock().catch(() => []),
+        api.getRejectedStock().catch(() => []),
+      ]);
 
-      setMetrics(dashboardMetrics);
-      setRecentActivity(activity);
+      if (dashboardMetrics) {
+        setMetrics(dashboardMetrics);
+      }
+      setRecentActivity(Array.isArray(activity) ? activity : []);
+      setStockOverview({
+        availableStock: Array.isArray(stock) ? stock.length : 0,
+        inTransit: Array.isArray(transit) ? transit.length : 0,
+        fgStock: Array.isArray(fgStock) ? fgStock.length : 0,
+        rejected: Array.isArray(rejectedStock) ? rejectedStock.length : 0,
+      });
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
@@ -140,7 +161,7 @@ export default function Dashboard() {
                 const ActivityIcon = activityIcons[activity.type] || Activity;
                 return (
                   <div
-                    key={index}
+                    key={activity.id || index}
                     className="px-6 py-4 hover:bg-secondary-50 transition-colors"
                   >
                     <div className="flex items-start gap-4">
@@ -248,25 +269,25 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
           <h3 className="font-medium text-green-900 mb-2">Available Stock</h3>
-          <p className="text-2xl font-bold text-green-700">1,254</p>
+          <p className="text-2xl font-bold text-green-700">{formatNumber(stockOverview.availableStock)}</p>
           <p className="text-xs text-green-600 mt-2">Items in warehouse</p>
         </div>
 
         <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-6 border border-yellow-200">
           <h3 className="font-medium text-yellow-900 mb-2">In Transit</h3>
-          <p className="text-2xl font-bold text-yellow-700">342</p>
+          <p className="text-2xl font-bold text-yellow-700">{formatNumber(stockOverview.inTransit)}</p>
           <p className="text-xs text-yellow-600 mt-2">Units on the way</p>
         </div>
 
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
           <h3 className="font-medium text-blue-900 mb-2">FG Stock</h3>
-          <p className="text-2xl font-bold text-blue-700">567</p>
+          <p className="text-2xl font-bold text-blue-700">{formatNumber(stockOverview.fgStock)}</p>
           <p className="text-xs text-blue-600 mt-2">Finished goods ready</p>
         </div>
 
         <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6 border border-red-200">
           <h3 className="font-medium text-red-900 mb-2">Rejected</h3>
-          <p className="text-2xl font-bold text-red-700">12</p>
+          <p className="text-2xl font-bold text-red-700">{formatNumber(stockOverview.rejected)}</p>
           <p className="text-xs text-red-600 mt-2">Items under review</p>
         </div>
       </div>

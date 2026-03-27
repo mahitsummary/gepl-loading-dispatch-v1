@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Plus, Eye, Download, QrCode, Scan, Truck, Package, FileText, Camera, Upload } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FormField from '@/components/FormField';
 import AutoComplete from '@/components/AutoComplete';
-import QRGenerator from '@/components/QRGenerator';
-import QRScanner from '@/components/QRScanner';
+const QRGenerator = dynamic(() => import('@/components/QRGenerator'), { ssr: false });
+const QRScanner = dynamic(() => import('@/components/QRScanner'), { ssr: false });
 import StatusBadge from '@/components/StatusBadge';
 import api from '@/lib/api';
 import { formatDate, generateQRData, parseQRData } from '@/lib/utils';

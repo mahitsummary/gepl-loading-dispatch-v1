@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { X } from 'lucide-react';
 
-const Modal = ({
+const Modal = memo(function Modal({
   isOpen,
   onClose,
   title = '',
@@ -12,7 +12,7 @@ const Modal = ({
   actions = [],
   closeOnBackdropClick = true,
   closeOnEscape = true,
-}) => {
+}) {
   useEffect(() => {
     const handleEscape = (e) => {
       if (closeOnEscape && e.key === 'Escape' && isOpen) {
@@ -106,6 +106,6 @@ const Modal = ({
       </div>
     </div>
   );
-};
+});
 
 export default Modal;
