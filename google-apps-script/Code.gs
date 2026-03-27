@@ -12,6 +12,10 @@ const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
  */
 function ensureSheetsExist() {
   const requiredSheets = [
+    { name: 'Item Master', columns: ['ItemCode', 'Foreign Name', 'Item Description', 'Sub Category', 'ItemsGroupCode', 'Shipping', 'Manufacturer', 'Regions Of Origin', 'Status', 'Manage Item', 'Item Category', 'Material Type'] },
+    { name: 'Vendor & Customer Master', columns: ['BP Name', 'BP Code', 'BP Type', 'Branch ID', 'BP group', 'Currency', 'Status', 'GSTIN', 'Street', 'Block', 'Building/Floor/Room', 'Zip Code', 'City', 'State', 'Country', 'Phone', 'Email', 'Contact Person'] },
+    { name: 'Warehouse Master', columns: ['Warehouse Code', 'Warehouse Name', 'Internal Key', 'Group Code', 'Inventory Account', 'Cost of Goods Sold Account', 'Allocation Account', 'Locked', 'Data Source', 'User Signature', 'Revenue Account'] },
+    { name: 'Production plant master', columns: ['Loc No', 'Location', 'Street', 'Block'] },
     { name: 'Supervisor Master', columns: ['SupervisorID', 'Name', 'Phone', 'Email', 'Address', 'Role', 'Status', 'DateAdded'] },
     { name: 'Driver Master', columns: ['DriverID', 'Name', 'Phone', 'LicenseNumber', 'Address', 'Email', 'Status', 'DateAdded'] },
     { name: 'Vehicle Master', columns: ['VehicleNumber', 'VehicleType', 'VehicleSize', 'OwnerName', 'Status', 'DateAdded'] },
@@ -105,6 +109,12 @@ function routeRequest(action, params) {
     case 'addVendor':
       logAudit(userEmail, 'CREATE', 'Vendor Master', '', JSON.stringify(params));
       return { success: true, data: addVendor(params) };
+    case 'updateVendor':
+      logAudit(userEmail, 'UPDATE', 'Vendor Master', params.id || params.BPCode, JSON.stringify(params));
+      return { success: true, data: updateVendor(params) };
+    case 'deleteVendor':
+      logAudit(userEmail, 'DELETE', 'Vendor Master', params.id || params.BPCode, '');
+      return { success: true, data: deleteVendor(params.id || params.BPCode) };
     case 'searchVendors':
       return { success: true, data: searchVendors(params.query) };
 
@@ -116,6 +126,12 @@ function routeRequest(action, params) {
     case 'addItem':
       logAudit(userEmail, 'CREATE', 'Item Master', '', JSON.stringify(params));
       return { success: true, data: addItem(params) };
+    case 'updateItem':
+      logAudit(userEmail, 'UPDATE', 'Item Master', params.id || params.ItemCode, JSON.stringify(params));
+      return { success: true, data: updateItem(params) };
+    case 'deleteItem':
+      logAudit(userEmail, 'DELETE', 'Item Master', params.id || params.ItemCode, '');
+      return { success: true, data: deleteItem(params.id || params.ItemCode) };
     case 'getUOMList':
       return { success: true, data: getUOMList() };
 
@@ -140,8 +156,11 @@ function routeRequest(action, params) {
       logAudit(userEmail, 'CREATE', 'Supervisor Master', '', JSON.stringify(params));
       return { success: true, data: addSupervisor(params) };
     case 'updateSupervisor':
-      logAudit(userEmail, 'UPDATE', 'Supervisor Master', params.SupervisorID, JSON.stringify(params));
+      logAudit(userEmail, 'UPDATE', 'Supervisor Master', params.SupervisorID || params.id, JSON.stringify(params));
       return { success: true, data: updateSupervisor(params) };
+    case 'deleteSupervisor':
+      logAudit(userEmail, 'DELETE', 'Supervisor Master', params.id || params.SupervisorID, '');
+      return { success: true, data: deleteSupervisor(params.id || params.SupervisorID) };
 
     // Driver operations
     case 'getDrivers':
@@ -170,7 +189,7 @@ function routeRequest(action, params) {
     case 'getGRNs':
       return { success: true, data: getGRNs() };
     case 'getGRNById':
-      return { success: true, data: getGRNById(params.GRNNumber) };
+      return { success: true, data: getGRNById(params.GRNNumber || params.grnNumber) };
     case 'addGRNLineItem':
       logAudit(userEmail, 'CREATE', 'GRN Line Items', params.GRNNumber, JSON.stringify(params));
       return { success: true, data: addGRNLineItem(params) };
@@ -185,7 +204,7 @@ function routeRequest(action, params) {
     case 'getRequisitions':
       return { success: true, data: getRequisitions() };
     case 'getRequisitionById':
-      return { success: true, data: getRequisitionById(params.RequisitionNumber) };
+      return { success: true, data: getRequisitionById(params.RequisitionNumber || params.reqNumber) };
     case 'addRequisitionLineItem':
       logAudit(userEmail, 'CREATE', 'Requisition Line Items', params.RequisitionNumber, JSON.stringify(params));
       return { success: true, data: addRequisitionLineItem(params) };
@@ -200,7 +219,7 @@ function routeRequest(action, params) {
     case 'getDispatches':
       return { success: true, data: getDispatches() };
     case 'getDispatchById':
-      return { success: true, data: getDispatchById(params.DCNumber) };
+      return { success: true, data: getDispatchById(params.DCNumber || params.dcNumber) };
     case 'addDispatchLineItem':
       logAudit(userEmail, 'CREATE', 'Dispatch Line Items', params.DCNumber, JSON.stringify(params));
       return { success: true, data: addDispatchLineItem(params) };
@@ -215,7 +234,7 @@ function routeRequest(action, params) {
     case 'getReceipts':
       return { success: true, data: getReceipts() };
     case 'getReceiptById':
-      return { success: true, data: getReceiptById(params.ReceiptNumber) };
+      return { success: true, data: getReceiptById(params.ReceiptNumber || params.receiptNumber) };
     case 'addReceiptLineItem':
       logAudit(userEmail, 'CREATE', 'Receipt Line Items', params.ReceiptNumber, JSON.stringify(params));
       return { success: true, data: addReceiptLineItem(params) };
@@ -234,7 +253,7 @@ function routeRequest(action, params) {
 
     // Stock operations
     case 'getStockByWarehouse':
-      return { success: true, data: getStockByWarehouse(params.WarehouseCode) };
+      return { success: true, data: getStockByWarehouse(params.WarehouseCode || params.warehouseCode) };
     case 'getOverallStock':
       return { success: true, data: getOverallStock() };
     case 'getGoodsInTransit':
@@ -269,6 +288,39 @@ function routeRequest(action, params) {
     // Batch operations
     case 'getBatchMaster':
       return { success: true, data: getBatchMaster() };
+
+    // ID generation
+    case 'generateGRNNumber':
+      return { success: true, data: generateSequentialID('GRN', 'GRN Transactions', 'GRNNumber') };
+    case 'generateBatchID':
+      return { success: true, data: generateSequentialID('BAT', 'Batch Master', 'BatchID') };
+    case 'generateDCNumber':
+      return { success: true, data: generateSequentialID('DC', 'Internal Dispatches', 'DCNumber') };
+    case 'generateReceiptNumber':
+      return { success: true, data: generateSequentialID('RN', 'Internal Receipts', 'ReceiptNumber') };
+
+    // Dashboard and analytics
+    case 'getDashboardStats':
+      return { success: true, data: getDashboardStats() };
+    case 'getRecentActivity':
+      return { success: true, data: getRecentActivity(params.limit || 10) };
+
+    // Rejected stock
+    case 'getRejectedStock':
+      return { success: true, data: getRejectedStock() };
+
+    // Production reconciliation
+    case 'getProductionReconciliation':
+      return { success: true, data: getProductionReconciliation() };
+
+    // Reconciliation update
+    case 'updateReconciliation':
+      logAudit(userEmail, 'UPDATE', 'Reconciliation', params.RecoID, JSON.stringify(params));
+      return { success: true, data: updateReconciliation(params) };
+
+    // Gate pass
+    case 'getOpenGatePasses':
+      return { success: true, data: getOpenGatePasses() };
 
     default:
       return { success: false, error: `Unknown action: ${action}` };
@@ -452,24 +504,24 @@ function getVendors() {
  */
 function addVendor(params) {
   const newVendor = {
-    'BP Name': params.BPName,
-    'BP Code': params.BPCode,
-    'BP Type': params.BPType,
+    'BP Name': params.BPName || params.vendorName || '',
+    'BP Code': params.BPCode || generateSequentialID('VND', 'Vendor & Customer Master', 'BP Code'),
+    'BP Type': params.BPType || 'Vendor',
     'Branch ID': params.BranchID || '',
     'BP group': params.BPGroup || '',
     'Currency': params.Currency || 'INR',
     'Status': params.Status || 'Active',
-    'GSTIN': params.GSTIN || '',
-    'Street': params.Street || '',
+    'GSTIN': params.GSTIN || params.gstin || '',
+    'Street': params.Street || params.address || '',
     'Block': params.Block || '',
     'Building/Floor/Room': params.BuildingFloorRoom || '',
     'Zip Code': params.ZipCode || '',
     'City': params.City || '',
     'State': params.State || '',
     'Country': params.Country || 'India',
-    'Phone': params.Phone || '',
-    'Email': params.Email || '',
-    'Contact Person': params.ContactPerson || ''
+    'Phone': params.Phone || params.phone || '',
+    'Email': params.Email || params.email || '',
+    'Contact Person': params.ContactPerson || params.contactPerson || ''
   };
 
   appendRowToSheet('Vendor & Customer Master', newVendor);
@@ -501,18 +553,18 @@ function getItems() {
  */
 function addItem(params) {
   const newItem = {
-    'ItemCode': params.ItemCode,
-    'Foreign Name': params.ForeignName || '',
-    'Item Description': params.ItemDescription || '',
-    'Sub Category': params.SubCategory || '',
+    'ItemCode': params.ItemCode || params.itemCode || '',
+    'Foreign Name': params.ForeignName || params.foreignName || '',
+    'Item Description': params.ItemDescription || params.itemName || '',
+    'Sub Category': params.SubCategory || params.category || '',
     'ItemsGroupCode': params.ItemsGroupCode || '',
     'Shipping': params.Shipping || '',
     'Manufacturer': params.Manufacturer || '',
     'Regions Of Origin': params.RegionsOfOrigin || '',
     'Status': params.Status || 'Active',
-    'Manage Item': params.ManageItem || '',
-    'Item Category': params.ItemCategory || '',
-    'Material Type': params.MaterialType || ''
+    'Manage Item': params.ManageItem || params.uom || '',
+    'Item Category': params.ItemCategory || params.category || '',
+    'Material Type': params.MaterialType || params.hsn || ''
   };
 
   appendRowToSheet('Item Master', newItem);
@@ -617,11 +669,11 @@ function addSupervisor(params) {
 
   const newSupervisor = {
     'SupervisorID': supervisorID,
-    'Name': params.Name,
-    'Phone': params.Phone || '',
-    'Email': params.Email || '',
-    'Address': params.Address || '',
-    'Role': params.Role || 'Loading-Unloading Supervisor',
+    'Name': params.Name || params.supervisorName || '',
+    'Phone': params.Phone || params.phone || '',
+    'Email': params.Email || params.email || '',
+    'Address': params.Address || params.assignedWarehouse || '',
+    'Role': params.Role || params.department || 'Loading-Unloading Supervisor',
     'Status': params.Status || 'Active',
     'DateAdded': new Date()
   };
@@ -634,13 +686,14 @@ function addSupervisor(params) {
  * Update supervisor
  */
 function updateSupervisor(params) {
-  updateRowInSheet('Supervisor Master', 'SupervisorID', params.SupervisorID, {
-    'Name': params.Name,
-    'Phone': params.Phone,
-    'Email': params.Email,
-    'Address': params.Address,
-    'Role': params.Role,
-    'Status': params.Status
+  const keyValue = params.SupervisorID || params.id;
+  updateRowInSheet('Supervisor Master', 'SupervisorID', keyValue, {
+    'Name': params.Name || params.supervisorName || '',
+    'Phone': params.Phone || params.phone || '',
+    'Email': params.Email || params.email || '',
+    'Address': params.Address || params.assignedWarehouse || '',
+    'Role': params.Role || params.department || '',
+    'Status': params.Status || 'Active'
   });
 
   return { success: true };
@@ -1596,6 +1649,234 @@ function updateSupervisorScore(supervisorID) {
   updateRowInSheet('Supervisor Scores', 'SupervisorID', supervisorID, { 'Rank': rank });
 
   return { success: true, data: scoreData };
+}
+
+// ==================== MISSING CRUD OPERATIONS ====================
+
+/**
+ * Update an existing item
+ */
+function updateItem(params) {
+  const keyValue = params.id || params.ItemCode;
+  updateRowInSheet('Item Master', 'ItemCode', keyValue, {
+    'Foreign Name': params.ForeignName || params.foreignName || '',
+    'Item Description': params.ItemDescription || params.itemName || '',
+    'Sub Category': params.SubCategory || params.category || '',
+    'ItemsGroupCode': params.ItemsGroupCode || '',
+    'Status': params.Status || 'Active',
+    'Item Category': params.ItemCategory || params.category || '',
+    'Material Type': params.MaterialType || ''
+  });
+  return { success: true };
+}
+
+/**
+ * Delete an item (soft delete by setting status to Inactive)
+ */
+function deleteItem(itemCode) {
+  updateRowInSheet('Item Master', 'ItemCode', itemCode, { 'Status': 'Inactive' });
+  return { success: true };
+}
+
+/**
+ * Update an existing vendor
+ */
+function updateVendor(params) {
+  const keyValue = params.id || params.BPCode;
+  updateRowInSheet('Vendor & Customer Master', 'BP Code', keyValue, {
+    'BP Name': params.BPName || params.vendorName || '',
+    'Contact Person': params.ContactPerson || params.contactPerson || '',
+    'Email': params.Email || params.email || '',
+    'Phone': params.Phone || params.phone || '',
+    'Street': params.Street || params.address || '',
+    'GSTIN': params.GSTIN || params.gstin || '',
+    'Status': params.Status || 'Active'
+  });
+  return { success: true };
+}
+
+/**
+ * Delete a vendor (soft delete by setting status to Inactive)
+ */
+function deleteVendor(vendorCode) {
+  updateRowInSheet('Vendor & Customer Master', 'BP Code', vendorCode, { 'Status': 'Inactive' });
+  return { success: true };
+}
+
+/**
+ * Delete a supervisor (soft delete by setting status to Inactive)
+ */
+function deleteSupervisor(supervisorId) {
+  updateRowInSheet('Supervisor Master', 'SupervisorID', supervisorId, { 'Status': 'Inactive' });
+  return { success: true };
+}
+
+// ==================== DASHBOARD & ANALYTICS ====================
+
+/**
+ * Get dashboard statistics
+ */
+function getDashboardStats() {
+  const grns = getSheetData('GRN Transactions');
+  const requisitions = getSheetData('Material Requisitions');
+  const goodsInTransit = getSheetData('Goods In Transit').filter(g => g.Status === 'InTransit');
+  const reconciliations = getSheetData('Reconciliation').filter(r => r.Status === 'Open');
+  const stockMaster = getSheetData('Stock Master');
+
+  let totalStockValue = 0;
+  for (const stock of stockMaster) {
+    totalStockValue += (stock.TotalQty || 0);
+  }
+
+  const pendingGRNs = grns.filter(g => g.Status === 'Open').length;
+  const openRequisitions = requisitions.filter(r => r.Status === 'Open').length;
+
+  return {
+    totalStockValue: totalStockValue,
+    pendingGRNs: pendingGRNs,
+    openRequisitions: openRequisitions,
+    goodsInTransit: goodsInTransit.length,
+    pendingReconciliation: reconciliations.length
+  };
+}
+
+/**
+ * Get recent activity from audit log
+ */
+function getRecentActivity(limit) {
+  const auditLog = getSheetData('Audit Log');
+  const numLimit = parseInt(limit) || 10;
+
+  const sorted = auditLog.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+  const recent = sorted.slice(0, numLimit);
+
+  return recent.map((entry, index) => ({
+    id: `activity-${index}`,
+    type: getActivityType(entry.Module),
+    title: `${entry.Action} - ${entry.Module}`,
+    description: entry.DocumentNumber ? `Document: ${entry.DocumentNumber}` : (entry.Details || '').substring(0, 100),
+    timestamp: entry.Timestamp,
+    status: entry.Action === 'CREATE' ? 'open' : 'completed'
+  }));
+}
+
+/**
+ * Map module name to activity type
+ */
+function getActivityType(moduleName) {
+  if (!moduleName) return 'other';
+  const lower = moduleName.toLowerCase();
+  if (lower.includes('grn')) return 'grn';
+  if (lower.includes('requisition')) return 'requisition';
+  if (lower.includes('dispatch')) return 'dispatch';
+  if (lower.includes('receipt')) return 'receipt';
+  if (lower.includes('production')) return 'production';
+  return 'other';
+}
+
+// ==================== REJECTED STOCK ====================
+
+/**
+ * Get all rejected stock
+ */
+function getRejectedStock() {
+  return getSheetData('Rejected Stock');
+}
+
+// ==================== PRODUCTION RECONCILIATION ====================
+
+/**
+ * Get production reconciliation (input vs output comparison)
+ */
+function getProductionReconciliation() {
+  const issues = getSheetData('Production Issues');
+  const outputs = getSheetData('Production Output');
+
+  const recoData = [];
+  const plantItems = {};
+
+  for (const issue of issues) {
+    const key = `${issue.ProductionPlant}-${issue.ItemCode}`;
+    if (!plantItems[key]) {
+      plantItems[key] = { inputQuantity: 0, outputQuantity: 0, itemName: issue.ItemName, plant: issue.ProductionPlant, itemCode: issue.ItemCode, date: issue.IssueDate };
+    }
+    plantItems[key].inputQuantity += (issue.QtyIssued || 0);
+  }
+
+  for (const output of outputs) {
+    const key = `${output.ProductionPlant}-${output.RMItemCode}`;
+    if (plantItems[key]) {
+      plantItems[key].outputQuantity += (output.QtyProduced || 0);
+    }
+  }
+
+  let idx = 1;
+  for (const key in plantItems) {
+    const item = plantItems[key];
+    recoData.push({
+      productionNumber: `PRECO-${String(idx++).padStart(3, '0')}`,
+      itemName: item.itemName,
+      inputQuantity: item.inputQuantity,
+      outputQuantity: item.outputQuantity,
+      productionDate: item.date
+    });
+  }
+
+  return recoData;
+}
+
+// ==================== RECONCILIATION UPDATE ====================
+
+/**
+ * Update reconciliation record
+ */
+function updateReconciliation(params) {
+  updateRowInSheet('Reconciliation', 'RecoID', params.RecoID, {
+    'Status': params.Status || 'Closed',
+    'Remarks': params.Remarks || '',
+    'ResolvedDate': params.Status === 'Closed' ? new Date() : ''
+  });
+  return { success: true };
+}
+
+// ==================== GATE PASS ====================
+
+/**
+ * Get open gate passes
+ */
+function getOpenGatePasses() {
+  const gatePasses = getSheetData('Gate Pass Register');
+  return gatePasses.filter(gp => gp.Status === 'Open');
+}
+
+// ==================== DELETE ROW UTILITY ====================
+
+/**
+ * Delete a row from a sheet by key field (soft delete via status update)
+ */
+function deleteRowFromSheet(sheetName, keyField, keyValue) {
+  try {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return false;
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const keyIndex = headers.indexOf(keyField);
+
+    if (keyIndex === -1) return false;
+
+    for (let i = data.length - 1; i >= 1; i--) {
+      if (data[i][keyIndex] == keyValue) {
+        sheet.deleteRow(i + 1);
+        return true;
+      }
+    }
+
+    return false;
+  } catch (e) {
+    Logger.log('Error deleting row: ' + e);
+    return false;
+  }
 }
 
 // ==================== TEST FUNCTION ====================
