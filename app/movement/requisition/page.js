@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Plus, Trash2, Eye, AlertCircle } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
@@ -8,7 +9,9 @@ import FormField from '@/components/FormField';
 import AutoComplete from '@/components/AutoComplete';
 import StatusBadge from '@/components/StatusBadge';
 import api from '@/lib/api';
-import { formatDate, getCurrentDate } from '@/lib/utils';
+import { formatDate, getCurrentDate, parseQRData } from '@/lib/utils';
+
+const QRScanner = dynamic(() => import('@/components/QRScanner'), { ssr: false });
 
 export default function RequisitionPage() {
   // Main data state
@@ -25,6 +28,8 @@ export default function RequisitionPage() {
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [selectedRequisition, setSelectedRequisition] = useState(null);
   const [editingLineItem, setEditingLineItem] = useState(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [scanError, setScanError] = useState('');
 
   // Form data
   const [requisitionForm, setRequisitionForm] = useState({

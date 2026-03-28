@@ -29,6 +29,7 @@ const INITIAL_TRANSACTION = {
   receiverName: '',
   vehicleNumber: '',
   invoicePhoto: null,
+  invoicePhotoPreview: '',
 };
 
 const INITIAL_LINE_ITEM = {
@@ -76,18 +77,20 @@ export default function GRNPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [grnData, vendorData, itemData, uomData, supervisorData] = await Promise.all([
+      const [grnData, vendorData, itemData, uomData, supervisorData, gatePassData] = await Promise.all([
         api.getGRNs().catch(() => []),
         api.fetchVendors().catch(() => []),
         api.fetchItems().catch(() => []),
         api.getUOMList().catch(() => []),
         api.fetchSupervisors().catch(() => []),
+        api.getOpenGatePasses().catch(() => []),
       ]);
       setGrns(Array.isArray(grnData) ? grnData : []);
       setVendors(Array.isArray(vendorData) ? vendorData : []);
       setItems(Array.isArray(itemData) ? itemData : []);
       setUomList(Array.isArray(uomData) ? uomData : ['PCS', 'KG', 'LTR', 'MTR', 'NOS', 'SET', 'BOX', 'ROLL', 'PKT', 'DOZ']);
       setSupervisors(Array.isArray(supervisorData) ? supervisorData : []);
+      setOpenGatePasses(Array.isArray(gatePassData) ? gatePassData : []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -550,23 +553,56 @@ export default function GRNPage() {
               onChange={(e) => setTransactionData(prev => ({ ...prev, receiptDate: e.target.value }))} />
             <FormField label="Entry Date" type="date" value={transactionData.entryDate} disabled />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Photo of Invoice</label>
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                  <Camera size={16} /> Take Photo
-                  <input type="file" accept="image/*" capture="environment" className="hidden"
-                    onChange={(e) => setTransactionData(prev => ({ ...prev, invoicePhoto: e.target.files[0] }))} />
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-secondary-700 mb-1">
+                Photo of Invoice
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 px-4 py-2 bg-secondary-100 text-secondary-700 rounded-lg hover:bg-secondary-200 transition-colors cursor-pointer">
+                  <Camera size={18} />
+                  <span>Take Photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setTransactionData(prev => ({ ...prev, invoicePhoto: file, invoicePhotoPreview: reader.result }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
                 </label>
-                <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                  <Upload size={16} /> Upload
-                  <input type="file" accept="image/*" className="hidden"
-                    onChange={(e) => setTransactionData(prev => ({ ...prev, invoicePhoto: e.target.files[0] }))} />
+                <label className="flex items-center gap-2 px-4 py-2 bg-secondary-100 text-secondary-700 rounded-lg hover:bg-secondary-200 transition-colors cursor-pointer">
+                  <Upload size={18} />
+                  <span>Upload</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setTransactionData(prev => ({ ...prev, invoicePhoto: file, invoicePhotoPreview: reader.result }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
                 </label>
-                {transactionData.invoicePhoto && (
-                  <span className="text-sm text-green-600">File selected</span>
-                )}
               </div>
+              {transactionData.invoicePhotoPreview && (
+                <div className="mt-2">
+                  <img src={transactionData.invoicePhotoPreview} alt="Invoice" className="max-h-40 rounded border" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -635,6 +671,20 @@ export default function GRNPage() {
             <span><strong>Vehicle:</strong> {transactionData.vehicleNumber}</span>
           </div>
         </div>
+
+        {/* Open Gate Passes */}
+        {openGatePasses.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <h3 className="font-semibold text-amber-800 mb-2">Open Gate Passes</h3>
+            <div className="flex flex-wrap gap-2">
+              {openGatePasses.map((gp, i) => (
+                <span key={i} className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
+                  {gp.GatePassNumber || gp.gatePassNumber} | {gp.VehicleNumber || gp.vehicleNumber}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</div>

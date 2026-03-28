@@ -17,6 +17,7 @@ export default function DriversMaster() {
     licenseNumber: '',
     licenseExpiry: '',
     phone: '',
+    email: '',
     address: '',
     aadhar: '',
     status: 'active',
@@ -45,6 +46,7 @@ export default function DriversMaster() {
       licenseNumber: '',
       licenseExpiry: '',
       phone: '',
+      email: '',
       address: '',
       aadhar: '',
       status: 'active',
@@ -90,6 +92,7 @@ export default function DriversMaster() {
     { key: 'licenseNumber', label: 'License #' },
     { key: 'licenseExpiry', label: 'License Expiry' },
     { key: 'phone', label: 'Phone' },
+    { key: 'email', label: 'Email' },
     { key: 'aadhar', label: 'Aadhar' },
     {
       key: 'status',
@@ -209,6 +212,13 @@ export default function DriversMaster() {
             }
             placeholder="e.g., +91-9876543210"
             required
+          />
+          <FormField
+            label="Email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            placeholder="e.g., driver@email.com"
           />
           <FormField
             label="Aadhar Number"

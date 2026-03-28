@@ -14,11 +14,12 @@ export default function SupervisorsMaster() {
   const [editingSupervisor, setEditingSupervisor] = useState(null);
   const [formData, setFormData] = useState({
     supervisorName: '',
-    employeeId: '',
-    email: '',
     phone: '',
-    department: '',
+    residentialAddress: '',
+    email: '',
+    role: '',
     assignedWarehouse: '',
+    status: 'Active',
   });
 
   useEffect(() => {
@@ -41,11 +42,12 @@ export default function SupervisorsMaster() {
     setEditingSupervisor(null);
     setFormData({
       supervisorName: '',
-      employeeId: '',
-      email: '',
       phone: '',
-      department: '',
+      residentialAddress: '',
+      email: '',
+      role: '',
       assignedWarehouse: '',
+      status: 'Active',
     });
     setShowModal(true);
   };
@@ -85,11 +87,11 @@ export default function SupervisorsMaster() {
 
   const columns = [
     { key: 'supervisorName', label: 'Name' },
-    { key: 'employeeId', label: 'Employee ID' },
-    { key: 'email', label: 'Email' },
     { key: 'phone', label: 'Phone' },
-    { key: 'department', label: 'Department' },
+    { key: 'email', label: 'Email' },
+    { key: 'role', label: 'Role' },
     { key: 'assignedWarehouse', label: 'Assigned Warehouse' },
+    { key: 'status', label: 'Status' },
     {
       key: 'actions',
       label: 'Actions',
@@ -138,7 +140,7 @@ export default function SupervisorsMaster() {
         data={supervisors}
         isLoading={isLoading}
         searchable={true}
-        searchableFields={['supervisorName', 'email', 'department']}
+        searchableFields={['supervisorName', 'email', 'role']}
         pageSize={10}
       />
 
@@ -170,12 +172,23 @@ export default function SupervisorsMaster() {
             required
           />
           <FormField
-            label="Employee ID"
-            value={formData.employeeId}
+            label="Phone"
+            value={formData.phone}
             onChange={(e) =>
-              setFormData({ ...formData, employeeId: e.target.value })
+              setFormData({ ...formData, phone: e.target.value })
             }
-            placeholder="e.g., EMP-001"
+            placeholder="+91-9876543210"
+            required
+          />
+          <FormField
+            label="Residential Address"
+            type="textarea"
+            rows={2}
+            value={formData.residentialAddress}
+            onChange={(e) =>
+              setFormData({ ...formData, residentialAddress: e.target.value })
+            }
+            placeholder="Full residential address"
             required
           />
           <FormField
@@ -188,20 +201,21 @@ export default function SupervisorsMaster() {
             placeholder="e.g., supervisor@company.com"
           />
           <FormField
-            label="Phone"
-            value={formData.phone}
+            label="Role"
+            type="select"
+            value={formData.role}
             onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
+              setFormData({ ...formData, role: e.target.value })
             }
-            placeholder="e.g., +91-9876543210"
-          />
-          <FormField
-            label="Department"
-            value={formData.department}
-            onChange={(e) =>
-              setFormData({ ...formData, department: e.target.value })
-            }
-            placeholder="e.g., Warehouse"
+            options={[
+              { value: 'Security', label: 'Security' },
+              { value: 'Loading/Unloading Supervisor', label: 'Loading/Unloading Supervisor' },
+              { value: 'Stockist', label: 'Stockist' },
+              { value: 'Admin', label: 'Admin' },
+              { value: 'Accountant', label: 'Accountant' },
+              { value: 'Godown Manager', label: 'Godown Manager' },
+              { value: 'Site Manager', label: 'Site Manager' },
+            ]}
             required
           />
           <FormField
@@ -214,6 +228,18 @@ export default function SupervisorsMaster() {
               })
             }
             placeholder="Warehouse name or code"
+          />
+          <FormField
+            label="Status"
+            type="select"
+            value={formData.status}
+            onChange={(e) =>
+              setFormData({ ...formData, status: e.target.value })
+            }
+            options={[
+              { value: 'Active', label: 'Active' },
+              { value: 'Inactive', label: 'Inactive' },
+            ]}
           />
         </div>
       </Modal>

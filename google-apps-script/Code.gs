@@ -14,9 +14,9 @@ function ensureSheetsExist() {
   const requiredSheets = [
     { name: 'Item Master', columns: ['ItemCode', 'Foreign Name', 'Item Description', 'Sub Category', 'ItemsGroupCode', 'Shipping', 'Manufacturer', 'Regions Of Origin', 'Status', 'Manage Item', 'Item Category', 'Material Type'] },
     { name: 'Vendor & Customer Master', columns: ['BP Name', 'BP Code', 'BP Type', 'Branch ID', 'BP group', 'Currency', 'Status', 'GSTIN', 'Street', 'Block', 'Building/Floor/Room', 'Zip Code', 'City', 'State', 'Country', 'Phone', 'Email', 'Contact Person'] },
-    { name: 'Warehouse Master', columns: ['Warehouse Code', 'Warehouse Name', 'Internal Key', 'Group Code', 'Inventory Account', 'Cost of Goods Sold Account', 'Allocation Account', 'Locked', 'Data Source', 'User Signature', 'Revenue Account'] },
+    { name: 'Warehouse Master', columns: ['Warehouse Code', 'Warehouse Name', 'Address', 'City', 'State', 'Pincode', 'GSTIN', 'Contact Phone', 'Contact Email', 'Manager Name', 'Capacity', 'Status', 'Data Source', 'User Signature'] },
     { name: 'Production plant master', columns: ['Loc No', 'Location', 'Street', 'Block'] },
-    { name: 'Supervisor Master', columns: ['SupervisorID', 'Name', 'Phone', 'Email', 'Address', 'Role', 'Status', 'DateAdded'] },
+    { name: 'Supervisor Master', columns: ['SupervisorID', 'Name', 'Phone', 'Email', 'Residential Address', 'Role', 'Assigned Warehouse', 'Status', 'DateAdded'] },
     { name: 'Driver Master', columns: ['DriverID', 'Name', 'Phone', 'LicenseNumber', 'Address', 'Email', 'Status', 'DateAdded'] },
     { name: 'Vehicle Master', columns: ['VehicleNumber', 'VehicleType', 'VehicleSize', 'OwnerName', 'Status', 'DateAdded'] },
     { name: 'Batch Master', columns: ['BatchID', 'ItemCode', 'ItemName', 'DateOfEntry', 'DateOfReceipt', 'DateOfProduction', 'PlaceOfOrigin', 'WarehouseCode', 'Qty', 'QtyPerPack', 'NumberOfPacks', 'UOM', 'GRNNumber', 'Status'] },
@@ -37,6 +37,7 @@ function ensureSheetsExist() {
     { name: 'Rejected Stock', columns: ['VirtualWarehouse', 'ProductionPlant', 'ItemCode', 'ItemName', 'UOM', 'Qty', 'RejectionDate', 'Remarks'] },
     { name: 'Supervisor Scores', columns: ['SupervisorID', 'SupervisorName', 'TotalDispatches', 'TotalReceipts', 'AccuracyScore', 'VarianceCount', 'LastUpdated', 'Rank'] },
     { name: 'Gate Pass Register', columns: ['GatePassNumber', 'Type', 'VehicleNumber', 'Date', 'DCNumber', 'GRNNumber', 'Status'] },
+    { name: 'RM Returns', columns: ['ReturnNumber', 'ProductionPlant', 'ReturnDate', 'ReturnedBy', 'DestinationWarehouse', 'ItemCode', 'ItemName', 'UOM', 'Qty', 'BatchID', 'Remarks', 'Status', 'DateCreated'] },
     { name: 'Audit Log', columns: ['Timestamp', 'UserEmail', 'Action', 'Module', 'DocumentNumber', 'Details'] }
   ];
 
@@ -306,6 +307,8 @@ function routeRequest(action, params) {
     // Batch operations
     case 'getBatchMaster':
       return { success: true, data: getBatchMaster() };
+    case 'getBatches':
+      return { success: true, data: getBatches() };
 
     // ID generation
     case 'generateGRNNumber':
@@ -335,6 +338,12 @@ function routeRequest(action, params) {
     case 'updateReconciliation':
       logAudit(userEmail, 'UPDATE', 'Reconciliation', params.RecoID, JSON.stringify(params));
       return { success: true, data: updateReconciliation(params) };
+
+    // RM Returns
+    case 'returnToStores':
+      return { success: true, data: returnToStores(params) };
+    case 'getReturns':
+      return { success: true, data: getReturns() };
 
     // Gate pass
     case 'getOpenGatePasses':
@@ -794,15 +803,28 @@ function searchItems(query) {
  * Get unique UOM list from Item Master
  */
 function getUOMList() {
-  const items = getItems();
-  const uoms = new Set();
-
-  for (const item of items) {
-    // Note: Item Master doesn't have explicit UOM column, extract from Batch Master or default
-    uoms.add('PCS'); // Default UOM
+  var sheet = ss.getSheetByName('Item Master');
+  if (!sheet) return ['PCS', 'KG', 'MTR', 'BOX', 'LTR', 'GM', 'DOZEN', 'SET', 'ROLL', 'PAIR', 'BUNDLE', 'SHEET', 'BAG', 'DRUM', 'CARTON'];
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return ['PCS', 'KG', 'MTR', 'BOX', 'LTR', 'GM', 'DOZEN', 'SET', 'ROLL', 'PAIR', 'BUNDLE', 'SHEET', 'BAG', 'DRUM', 'CARTON'];
+  var headers = data[0];
+  var uomCol = -1;
+  for (var j = 0; j < headers.length; j++) {
+    if (headers[j].toString().toLowerCase().indexOf('uom') >= 0) {
+      uomCol = j;
+      break;
+    }
   }
-
-  return Array.from(uoms);
+  var defaultUoms = ['PCS', 'KG', 'MTR', 'BOX', 'LTR', 'GM', 'DOZEN', 'SET', 'ROLL', 'PAIR', 'BUNDLE', 'SHEET', 'BAG', 'DRUM', 'CARTON'];
+  if (uomCol === -1) return defaultUoms;
+  var uomSet = {};
+  for (var i = 1; i < data.length; i++) {
+    var uom = data[i][uomCol].toString().trim().toUpperCase();
+    if (uom) uomSet[uom] = true;
+  }
+  // Merge with defaults
+  defaultUoms.forEach(function(u) { uomSet[u] = true; });
+  return Object.keys(uomSet).sort();
 }
 
 // ==================== WAREHOUSE MASTER OPERATIONS ====================
@@ -821,15 +843,18 @@ function addWarehouse(params) {
   const newWarehouse = {
     'Warehouse Code': params.WarehouseCode || params.warehouseCode || generateSequentialID('WH', 'Warehouse Master', 'Warehouse Code'),
     'Warehouse Name': params.WarehouseName || params.warehouseName || '',
-    'Internal Key': params.InternalKey || params.location || '',
-    'Group Code': params.GroupCode || params.city || '',
-    'Inventory Account': params.InventoryAccount || params.state || '',
-    'Cost of Goods Sold Account': params.COGSAccount || params.pincode || '',
-    'Allocation Account': params.AllocationAccount || params.managerName || '',
-    'Locked': params.Locked || 'No',
-    'Data Source': params.DataSource || params.phone || '',
-    'User Signature': params.UserSignature || params.capacity || '',
-    'Revenue Account': params.RevenueAccount || ''
+    'Address': params.Address || params.address || '',
+    'City': params.City || params.city || '',
+    'State': params.State || params.state || '',
+    'Pincode': params.Pincode || params.pincode || '',
+    'GSTIN': params.GSTIN || params.gstin || '',
+    'Contact Phone': params.ContactPhone || params.contactPhone || params.phone || '',
+    'Contact Email': params.ContactEmail || params.contactEmail || params.email || '',
+    'Manager Name': params.ManagerName || params.managerName || '',
+    'Capacity': params.Capacity || params.capacity || '',
+    'Status': params.Status || params.status || 'Active',
+    'Data Source': params.DataSource || params.dataSource || '',
+    'User Signature': params.UserSignature || params.userSignature || ''
   };
 
   appendRowToSheet('Warehouse Master', newWarehouse);
@@ -880,8 +905,9 @@ function addSupervisor(params) {
     'Name': params.Name || params.supervisorName || '',
     'Phone': params.Phone || params.phone || '',
     'Email': params.Email || params.email || '',
-    'Address': params.Address || params.assignedWarehouse || '',
+    'Residential Address': params.ResidentialAddress || params.residentialAddress || params.Address || '',
     'Role': params.Role || params.department || 'Loading-Unloading Supervisor',
+    'Assigned Warehouse': params.AssignedWarehouse || params.assignedWarehouse || '',
     'Status': params.Status || 'Active',
     'DateAdded': new Date()
   };
@@ -1194,6 +1220,81 @@ function updateStockOnGRN(warehouseCode, itemCode, quantity, uom) {
  */
 function getBatchMaster() {
   return getSheetData('Batch Master');
+}
+
+/**
+ * Get batches with raw headers
+ */
+function getBatches() {
+  var sheet = ss.getSheetByName('Batch Master');
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var headers = data[0];
+  var result = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = {};
+    for (var j = 0; j < headers.length; j++) {
+      row[headers[j]] = data[i][j];
+    }
+    row.id = i;
+    result.push(row);
+  }
+  return result;
+}
+
+// ==================== RM RETURNS OPERATIONS ====================
+
+/**
+ * Return raw materials to stores
+ */
+function returnToStores(params) {
+  var sheet = ss.getSheetByName('RM Returns');
+  var returnNumber = generateSequentialID('RTN', 'RM Returns', 'ReturnNumber');
+
+  sheet.appendRow([
+    returnNumber,
+    params.productionPlant || '',
+    params.returnDate || new Date().toISOString(),
+    params.returnedBy || '',
+    params.destinationWarehouse || '',
+    params.itemCode || '',
+    params.itemName || '',
+    params.uom || '',
+    params.quantity || 0,
+    params.batchId || '',
+    params.remarks || '',
+    'Completed',
+    new Date().toISOString()
+  ]);
+
+  // Add stock back to destination warehouse
+  updateStockOnReceipt(params.destinationWarehouse, params.itemCode, parseFloat(params.quantity || 0));
+
+  logAudit(Session.getActiveUser().getEmail(), 'CREATE', 'RM Returns', returnNumber, 'RM returned to stores: ' + params.itemCode);
+
+  return { success: true, returnNumber: returnNumber };
+}
+
+/**
+ * Get all RM returns
+ */
+function getReturns() {
+  var sheet = ss.getSheetByName('RM Returns');
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var headers = data[0];
+  var result = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = {};
+    for (var j = 0; j < headers.length; j++) {
+      row[headers[j]] = data[i][j];
+    }
+    row.id = i;
+    result.push(row);
+  }
+  return result;
 }
 
 // ==================== MATERIAL REQUISITION OPERATIONS ====================
@@ -1637,15 +1738,80 @@ function getReconciliationsByDC(dcNumber) {
  * Reconcile document
  */
 function reconcileDocument(params) {
-  const recoID = params.RecoID;
+  var sheet = ss.getSheetByName('Reconciliation');
+  if (!sheet) return { success: false, error: 'Reconciliation sheet not found' };
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
 
-  updateRowInSheet('Reconciliation', 'RecoID', recoID, {
-    'Status': 'Closed',
-    'ResolvedDate': new Date(),
-    'Remarks': params.Remarks || ''
-  });
+  var recoIdCol = headers.indexOf('RecoID');
+  var statusCol = headers.indexOf('Status');
+  var remarksCol = headers.indexOf('Remarks');
+  var varianceTypeCol = headers.indexOf('VarianceType');
+  var resolvedDateCol = headers.indexOf('ResolvedDate');
+  var dcNumberCol = headers.indexOf('DCNumber');
+  var receiptNumberCol = headers.indexOf('ReceiptNumber');
+  var itemCodeCol = headers.indexOf('ItemCode');
+  var dispatchQtyCol = headers.indexOf('DispatchQty');
+  var receiptQtyCol = headers.indexOf('ReceiptQty');
 
-  return { success: true };
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][recoIdCol] === params.recoId || data[i][recoIdCol] === params.RecoID || data[i][dcNumberCol] === params.dispatchId) {
+      var varianceType = params.varianceType || data[i][varianceTypeCol];
+      var itemCode = data[i][itemCodeCol];
+      var dispatchQty = parseFloat(data[i][dispatchQtyCol] || 0);
+      var receiptQty = parseFloat(data[i][receiptQtyCol] || 0);
+
+      // Get dispatch and receipt location info
+      var dispatchSheet = ss.getSheetByName('Internal Dispatches');
+      var dispatchData = dispatchSheet ? dispatchSheet.getDataRange().getValues() : [];
+      var dcNumber = data[i][dcNumberCol];
+      var locationFrom = '';
+      var locationTo = '';
+
+      for (var d = 1; d < dispatchData.length; d++) {
+        if (dispatchData[d][0] === dcNumber) {
+          locationFrom = dispatchData[d][dispatchData[0].indexOf('LocationFrom')] || '';
+          locationTo = dispatchData[d][dispatchData[0].indexOf('LocationTo')] || '';
+          break;
+        }
+      }
+
+      // Apply corrective stock based on variance type
+      if (varianceType === 'dispatch-counting-error' || varianceType === 'DispatchError') {
+        // Dispatch counting error: use receipt qty for all stock transactions
+        // Correct source warehouse: add back (dispatchQty - receiptQty)
+        if (locationFrom && dispatchQty > receiptQty) {
+          updateStockOnReceipt(locationFrom, itemCode, dispatchQty - receiptQty);
+        } else if (locationFrom && receiptQty > dispatchQty) {
+          updateStockOnDispatch(locationFrom, itemCode, receiptQty - dispatchQty);
+        }
+      } else if (varianceType === 'receipt-counting-error' || varianceType === 'ReceiptError') {
+        // Receipt counting error: use dispatch qty for stock transactions
+        // Correct destination warehouse
+        if (locationTo && dispatchQty > receiptQty) {
+          updateStockOnReceipt(locationTo, itemCode, dispatchQty - receiptQty);
+        } else if (locationTo && receiptQty > dispatchQty) {
+          updateStockOnDispatch(locationTo, itemCode, receiptQty - dispatchQty);
+        }
+      } else if (varianceType === 'transit-loss' || varianceType === 'TransitLoss') {
+        // Transit loss: reduce from dispatch location, add receipt qty at destination
+        // Stock already reduced at dispatch and added at receipt, so just mark resolved
+        // No additional stock adjustment needed - the actual quantities stand
+      }
+
+      // Update reconciliation record
+      sheet.getRange(i + 1, varianceTypeCol + 1).setValue(varianceType);
+      sheet.getRange(i + 1, statusCol + 1).setValue('Closed');
+      sheet.getRange(i + 1, remarksCol + 1).setValue(params.remarks || params.Remarks || '');
+      sheet.getRange(i + 1, resolvedDateCol + 1).setValue(new Date().toISOString());
+
+      logAudit(Session.getActiveUser().getEmail(), 'UPDATE', 'Reconciliation', data[i][recoIdCol], 'Reconciled with type: ' + varianceType);
+
+      return { success: true };
+    }
+  }
+
+  return { success: false, error: 'Reconciliation record not found' };
 }
 
 // ==================== STOCK OPERATIONS ====================
@@ -2098,13 +2264,16 @@ function updateWarehouse(params) {
   const keyValue = params.id || params.warehouseCode;
   updateRowInSheet('Warehouse Master', 'Warehouse Code', keyValue, {
     'Warehouse Name': params.warehouseName || params['Warehouse Name'] || '',
-    'Location': params.location || '',
-    'City': params.city || '',
-    'State': params.state || '',
-    'Pincode': params.pincode || '',
-    'Manager Name': params.managerName || '',
-    'Phone': params.phone || '',
-    'Capacity': params.capacity || ''
+    'Address': params.Address || params.address || '',
+    'City': params.City || params.city || '',
+    'State': params.State || params.state || '',
+    'Pincode': params.Pincode || params.pincode || '',
+    'GSTIN': params.GSTIN || params.gstin || '',
+    'Contact Phone': params.ContactPhone || params.contactPhone || params.phone || '',
+    'Contact Email': params.ContactEmail || params.contactEmail || params.email || '',
+    'Manager Name': params.ManagerName || params.managerName || '',
+    'Capacity': params.Capacity || params.capacity || '',
+    'Status': params.Status || params.status || 'Active'
   });
   return { success: true };
 }

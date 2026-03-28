@@ -15,12 +15,14 @@ export default function WarehousesMaster() {
   const [formData, setFormData] = useState({
     warehouseName: '',
     warehouseCode: '',
-    location: '',
+    address: '',
     city: '',
     state: '',
     pincode: '',
+    gstin: '',
+    contactPhone: '',
+    contactEmail: '',
     managerName: '',
-    phone: '',
     capacity: '',
   });
 
@@ -45,12 +47,14 @@ export default function WarehousesMaster() {
     setFormData({
       warehouseName: '',
       warehouseCode: '',
-      location: '',
+      address: '',
       city: '',
       state: '',
       pincode: '',
+      gstin: '',
+      contactPhone: '',
+      contactEmail: '',
       managerName: '',
-      phone: '',
       capacity: '',
     });
     setShowModal(true);
@@ -92,11 +96,11 @@ export default function WarehousesMaster() {
   const columns = [
     { key: 'warehouseName', label: 'Warehouse Name' },
     { key: 'warehouseCode', label: 'Code' },
-    { key: 'location', label: 'Location' },
     { key: 'city', label: 'City' },
+    { key: 'state', label: 'State' },
+    { key: 'gstin', label: 'GSTIN' },
+    { key: 'contactPhone', label: 'Contact Phone' },
     { key: 'managerName', label: 'Manager' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'capacity', label: 'Capacity' },
     {
       key: 'actions',
       label: 'Actions',
@@ -186,12 +190,15 @@ export default function WarehousesMaster() {
             required
           />
           <FormField
-            label="Location"
-            value={formData.location}
+            label="Address"
+            type="textarea"
+            rows={3}
+            value={formData.address}
             onChange={(e) =>
-              setFormData({ ...formData, location: e.target.value })
+              setFormData({ ...formData, address: e.target.value })
             }
-            placeholder="Specific location details"
+            placeholder="Full street address"
+            required
           />
           <FormField
             label="City"
@@ -218,20 +225,39 @@ export default function WarehousesMaster() {
             placeholder="e.g., 400001"
           />
           <FormField
+            label="GSTIN"
+            value={formData.gstin}
+            onChange={(e) =>
+              setFormData({ ...formData, gstin: e.target.value })
+            }
+            placeholder="e.g., 27AABCT1234H1Z0"
+            required
+          />
+          <FormField
+            label="Contact Phone"
+            value={formData.contactPhone}
+            onChange={(e) =>
+              setFormData({ ...formData, contactPhone: e.target.value })
+            }
+            placeholder="+91-9876543210"
+            required
+          />
+          <FormField
+            label="Contact Email"
+            type="email"
+            value={formData.contactEmail}
+            onChange={(e) =>
+              setFormData({ ...formData, contactEmail: e.target.value })
+            }
+            placeholder="e.g., warehouse@company.com"
+          />
+          <FormField
             label="Manager Name"
             value={formData.managerName}
             onChange={(e) =>
               setFormData({ ...formData, managerName: e.target.value })
             }
             placeholder="Warehouse manager name"
-          />
-          <FormField
-            label="Phone"
-            value={formData.phone}
-            onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
-            }
-            placeholder="e.g., +91-9876543210"
           />
           <FormField
             label="Capacity"

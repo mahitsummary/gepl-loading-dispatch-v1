@@ -17,9 +17,13 @@ export default function ItemsMaster() {
     itemCode: '',
     itemName: '',
     category: '',
+    subCategory: '',
     uom: '',
     hsn: '',
     gstRate: '',
+    manufacturer: '',
+    materialType: '',
+    status: 'Active',
   });
 
   useEffect(() => {
@@ -44,9 +48,13 @@ export default function ItemsMaster() {
       itemCode: '',
       itemName: '',
       category: '',
+      subCategory: '',
       uom: '',
       hsn: '',
       gstRate: '',
+      manufacturer: '',
+      materialType: '',
+      status: 'Active',
     });
     setShowModal(true);
   };
@@ -91,6 +99,8 @@ export default function ItemsMaster() {
     { key: 'uom', label: 'UOM' },
     { key: 'hsn', label: 'HSN' },
     { key: 'gstRate', label: 'GST %' },
+    { key: 'manufacturer', label: 'Manufacturer' },
+    { key: 'status', label: 'Status' },
     {
       key: 'actions',
       label: 'Actions',
@@ -177,11 +187,26 @@ export default function ItemsMaster() {
           />
           <FormField
             label="Category"
+            type="select"
             value={formData.category}
             onChange={(e) =>
               setFormData({ ...formData, category: e.target.value })
             }
-            placeholder="e.g., Raw Material"
+            options={[
+              { value: 'Raw Material', label: 'Raw Material' },
+              { value: 'Semi-Finished', label: 'Semi-Finished' },
+              { value: 'Finished Good', label: 'Finished Good' },
+              { value: 'Packaging', label: 'Packaging' },
+              { value: 'Consumable', label: 'Consumable' },
+            ]}
+          />
+          <FormField
+            label="Sub Category"
+            value={formData.subCategory}
+            onChange={(e) =>
+              setFormData({ ...formData, subCategory: e.target.value })
+            }
+            placeholder="e.g., Metal Parts"
           />
           <FormField
             label="UOM"
@@ -193,6 +218,17 @@ export default function ItemsMaster() {
               { value: 'KG', label: 'Kilogram' },
               { value: 'MTR', label: 'Meter' },
               { value: 'BOX', label: 'Box' },
+              { value: 'LTR', label: 'Litre' },
+              { value: 'GM', label: 'Gram' },
+              { value: 'DOZEN', label: 'Dozen' },
+              { value: 'SET', label: 'Set' },
+              { value: 'ROLL', label: 'Roll' },
+              { value: 'PAIR', label: 'Pair' },
+              { value: 'BUNDLE', label: 'Bundle' },
+              { value: 'SHEET', label: 'Sheet' },
+              { value: 'BAG', label: 'Bag' },
+              { value: 'DRUM', label: 'Drum' },
+              { value: 'CARTON', label: 'Carton' },
             ]}
             required
           />

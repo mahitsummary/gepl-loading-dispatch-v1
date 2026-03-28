@@ -15,6 +15,7 @@ export default function VehiclesMaster() {
   const [formData, setFormData] = useState({
     vehicleNumber: '',
     vehicleType: '',
+    vehicleSize: '',
     manufacturer: '',
     registrationDate: '',
     fitnessExpiryDate: '',
@@ -44,6 +45,7 @@ export default function VehiclesMaster() {
     setFormData({
       vehicleNumber: '',
       vehicleType: '',
+      vehicleSize: '',
       manufacturer: '',
       registrationDate: '',
       fitnessExpiryDate: '',
@@ -90,6 +92,7 @@ export default function VehiclesMaster() {
   const columns = [
     { key: 'vehicleNumber', label: 'Vehicle #' },
     { key: 'vehicleType', label: 'Type' },
+    { key: 'vehicleSize', label: 'Size' },
     { key: 'manufacturer', label: 'Manufacturer' },
     { key: 'registrationDate', label: 'Reg. Date' },
     { key: 'fitnessExpiryDate', label: 'Fitness Expiry' },
@@ -194,6 +197,19 @@ export default function VehiclesMaster() {
               setFormData({ ...formData, vehicleType: e.target.value })
             }
             placeholder="e.g., Truck, Tempo, Lorry"
+            required
+          />
+          <FormField
+            label="Vehicle Size"
+            type="select"
+            value={formData.vehicleSize}
+            onChange={(e) => setFormData({ ...formData, vehicleSize: e.target.value })}
+            options={[
+              { value: 'Small', label: 'Small (up to 1 Ton)' },
+              { value: 'Medium', label: 'Medium (1-5 Tons)' },
+              { value: 'Large', label: 'Large (5-10 Tons)' },
+              { value: 'Extra Large', label: 'Extra Large (10+ Tons)' },
+            ]}
             required
           />
           <FormField

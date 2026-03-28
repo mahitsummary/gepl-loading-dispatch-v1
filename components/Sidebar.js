@@ -32,6 +32,7 @@ const menuItems = {
       { label: 'Supervisor Master', href: '/masters/supervisors' },
       { label: 'Driver Master', href: '/masters/drivers' },
       { label: 'Vehicle Master', href: '/masters/vehicles' },
+      { label: 'Batch Master', href: '/masters/batches' },
     ],
   },
   inward: {
@@ -62,6 +63,7 @@ const menuItems = {
     items: [
       { label: 'Issue to Production', href: '/production/issue' },
       { label: 'Production Output', href: '/production/output' },
+      { label: 'RM Return to Stores', href: '/production/return' },
     ],
   },
   stock: {
