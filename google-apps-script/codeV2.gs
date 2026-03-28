@@ -348,194 +348,9 @@ function routeRequest(action, params) {
 // ==================== UTILITY FUNCTIONS ====================
 
 /**
- * Column name mapping: Sheet column headers -> camelCase keys expected by frontend
+ * Get raw data from a specific sheet (original column headers as keys)
  */
-const COLUMN_MAP = {
-  // Item Master
-  'ItemCode': 'itemCode',
-  'Foreign Name': 'foreignName',
-  'Item Description': 'itemName',
-  'Sub Category': 'category',
-  'ItemsGroupCode': 'itemsGroupCode',
-  'Shipping': 'shipping',
-  'Manufacturer': 'manufacturer',
-  'Regions Of Origin': 'regionsOfOrigin',
-  'Status': 'status',
-  'Manage Item': 'uom',
-  'Item Category': 'itemCategory',
-  'Material Type': 'hsn',
-
-  // Vendor & Customer Master
-  'BP Name': 'vendorName',
-  'BP Code': 'vendorCode',
-  'BP Type': 'bpType',
-  'Branch ID': 'branchId',
-  'BP group': 'bpGroup',
-  'Currency': 'currency',
-  'GSTIN': 'gstin',
-  'Street': 'address',
-  'Block': 'block',
-  'Building/Floor/Room': 'buildingFloorRoom',
-  'Zip Code': 'zipCode',
-  'City': 'city',
-  'State': 'state',
-  'Country': 'country',
-  'Phone': 'phone',
-  'Email': 'email',
-  'Contact Person': 'contactPerson',
-
-  // Warehouse Master
-  'Warehouse Code': 'warehouseCode',
-  'Warehouse Name': 'warehouseName',
-  'Internal Key': 'internalKey',
-  'Group Code': 'groupCode',
-  'Inventory Account': 'inventoryAccount',
-  'Cost of Goods Sold Account': 'cogsAccount',
-  'Allocation Account': 'allocationAccount',
-  'Locked': 'locked',
-  'Data Source': 'dataSource',
-  'User Signature': 'userSignature',
-  'Revenue Account': 'revenueAccount',
-
-  // Production plant master
-  'Loc No': 'plantCode',
-  'Location': 'plantName',
-
-  // Supervisor Master
-  'SupervisorID': 'id',
-  'Name': 'supervisorName',
-  'Address': 'assignedWarehouse',
-  'Role': 'department',
-  'DateAdded': 'dateAdded',
-
-  // Driver Master
-  'DriverID': 'id',
-  'LicenseNumber': 'licenseNumber',
-
-  // Vehicle Master
-  'VehicleNumber': 'vehicleNumber',
-  'VehicleType': 'vehicleType',
-  'VehicleSize': 'manufacturer',
-  'OwnerName': 'ownerName',
-
-  // GRN
-  'GRNNumber': 'GRNNumber',
-  'GatePassNumber': 'GatePassNumber',
-  'VendorCode': 'VendorCode',
-  'VendorName': 'VendorName',
-  'PONumber': 'PONumber',
-  'PODate': 'PODate',
-  'CommittedDeliveryDate': 'CommittedDeliveryDate',
-  'VendorDocNumber': 'VendorDocNumber',
-  'VendorDocDate': 'VendorDocDate',
-  'ReceiptDate': 'ReceiptDate',
-  'EntryDate': 'EntryDate',
-  'ReceiverName': 'ReceiverName',
-  'TotalItems': 'TotalItems',
-  'Remarks': 'Remarks',
-
-  // Stock Master
-  'WarehouseCode': 'warehouse',
-  'WarehouseName': 'warehouseName',
-  'ItemName': 'itemName',
-  'UOM': 'uom',
-  'QtyInPacks': 'qtyInPacks',
-  'TotalQty': 'quantity',
-  'LastUpdated': 'lastUpdated',
-
-  // Goods In Transit
-  'DCNumber': 'dcNumber',
-  'DispatchDate': 'dispatchDate',
-  'LocationFrom': 'sourceWarehouse',
-  'LocationTo': 'destinationPlant',
-
-  // Dispatch
-  'SupervisorName': 'supervisorName',
-  'DriverName': 'driverName',
-  'Date': 'dispatchDate',
-  'LocationFromAddress': 'locationFromAddress',
-  'LocationFromGST': 'locationFromGST',
-  'LocationFromPhone': 'locationFromPhone',
-  'LocationToAddress': 'locationToAddress',
-  'LocationToGST': 'locationToGST',
-  'LocationToPhone': 'locationToPhone',
-
-  // Receipts
-  'ReceiptNumber': 'receiptNumber',
-  'DeliveryChallanDate': 'deliveryChallanDate',
-
-  // Requisition
-  'RequisitionNumber': 'requisitionNumber',
-  'RequestedBy': 'requestedBy',
-  'RequestedDate': 'requestedDate',
-  'ProductionDate': 'productionDate',
-  'ProductionPlant': 'productionPlant',
-  'DestinationWarehouse': 'destinationWarehouse',
-  'DateCreated': 'dateCreated',
-
-  // Requisition Line Items
-  'LineNumber': 'lineNumber',
-  'QtyRequired': 'totalQtyRequired',
-  'QtyDispatched': 'qtyDispatched',
-  'QtyPending': 'qtyPending',
-
-  // Dispatch/Receipt Line Items
-  'QtyPerPack': 'qtyPerPack',
-  'NumberOfPacks': 'numberOfPacks',
-  'BatchID': 'batchId',
-  'GRNStickerGenerated': 'grnStickerGenerated',
-  'GRNStickerStuck': 'grnStickerStuck',
-  'GRNStickerPut': 'grnStickerPut',
-
-  // Production
-  'IssueNumber': 'issueNumber',
-  'IssueDate': 'issueDate',
-  'IssuedBy': 'issuedBy',
-  'QtyIssued': 'quantity',
-  'OutputNumber': 'outputNumber',
-  'FGItemCode': 'itemCode',
-  'FGItemName': 'itemName',
-  'QtyProduced': 'quantity',
-  'RMItemCode': 'rmItemCode',
-  'RMQtyUsedPerUnit': 'rmQtyUsedPerUnit',
-
-  // FG Stock
-  'Qty': 'quantity',
-
-  // Rejected Stock
-  'VirtualWarehouse': 'virtualWarehouse',
-  'RejectionDate': 'rejectionDate',
-
-  // Reconciliation
-  'RecoID': 'recoId',
-  'DispatchQty': 'dispatchQty',
-  'ReceiptQty': 'receiptQty',
-  'Variance': 'variance',
-  'VarianceType': 'varianceType',
-  'ResolvedDate': 'resolvedDate',
-
-  // Supervisor Scores
-  'TotalDispatches': 'tasksCompleted',
-  'TotalReceipts': 'totalReceipts',
-  'AccuracyScore': 'accuracyScore',
-  'VarianceCount': 'varianceCount',
-  'Rank': 'rank',
-
-  // Gate Pass
-  'Type': 'type'
-};
-
-/**
- * Convert a sheet header to its mapped camelCase key
- */
-function mapColumnName(header) {
-  return COLUMN_MAP[header] || header;
-}
-
-/**
- * Get all data from a specific sheet with camelCase keys
- */
-function getSheetData(sheetName) {
+function getRawSheetData(sheetName) {
   try {
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) return [];
@@ -549,12 +364,7 @@ function getSheetData(sheetName) {
     for (let i = 1; i < data.length; i++) {
       const row = {};
       for (let j = 0; j < headers.length; j++) {
-        const key = mapColumnName(headers[j]);
-        row[key] = data[i][j];
-        // Also keep original key for internal lookups
-        if (key !== headers[j]) {
-          row[headers[j]] = data[i][j];
-        }
+        row[headers[j]] = data[i][j];
       }
       rows.push(row);
     }
@@ -564,6 +374,447 @@ function getSheetData(sheetName) {
     Logger.log(`Error reading sheet ${sheetName}: ${e}`);
     return [];
   }
+}
+
+/**
+ * Get sheet data - alias for getRawSheetData (used by internal functions)
+ */
+function getSheetData(sheetName) {
+  return getRawSheetData(sheetName);
+}
+
+/**
+ * Transform item row for frontend
+ */
+function transformItem(row) {
+  return {
+    id: row.ItemCode || '',
+    itemCode: row.ItemCode || '',
+    itemName: row['Item Description'] || '',
+    foreignName: row['Foreign Name'] || '',
+    category: row['Sub Category'] || row['Item Category'] || '',
+    uom: row['Manage Item'] || 'PCS',
+    hsn: row['Material Type'] || '',
+    gstRate: row['ItemsGroupCode'] || '',
+    status: row.Status || 'Active',
+    manufacturer: row.Manufacturer || '',
+    shipping: row.Shipping || ''
+  };
+}
+
+/**
+ * Transform vendor row for frontend
+ */
+function transformVendor(row) {
+  return {
+    id: row['BP Code'] || '',
+    vendorCode: row['BP Code'] || '',
+    vendorName: row['BP Name'] || '',
+    contactPerson: row['Contact Person'] || '',
+    email: row.Email || '',
+    phone: row.Phone || '',
+    address: row.Street || '',
+    gstin: row.GSTIN || '',
+    bpType: row['BP Type'] || '',
+    city: row.City || '',
+    state: row.State || '',
+    country: row.Country || '',
+    status: row.Status || 'Active',
+    // Keep original keys for GRN page compatibility
+    'BP Code': row['BP Code'] || '',
+    'BP Name': row['BP Name'] || '',
+    'Contact Person': row['Contact Person'] || '',
+    'Phone': row.Phone || '',
+    'Email': row.Email || '',
+    BPCode: row['BP Code'] || '',
+    BPName: row['BP Name'] || ''
+  };
+}
+
+/**
+ * Transform warehouse row for frontend
+ */
+function transformWarehouse(row) {
+  return {
+    id: row['Warehouse Code'] || '',
+    warehouseCode: row['Warehouse Code'] || '',
+    warehouseName: row['Warehouse Name'] || '',
+    location: row['Internal Key'] || '',
+    city: row['Group Code'] || '',
+    state: row['Inventory Account'] || '',
+    pincode: row['Cost of Goods Sold Account'] || '',
+    managerName: row['Allocation Account'] || '',
+    phone: row['Data Source'] || '',
+    capacity: row['User Signature'] || '',
+    status: row.Locked || 'No',
+    'Warehouse Code': row['Warehouse Code'] || '',
+    'Warehouse Name': row['Warehouse Name'] || ''
+  };
+}
+
+/**
+ * Transform plant row for frontend
+ */
+function transformPlant(row) {
+  return {
+    id: row['Loc No'] || '',
+    plantCode: row['Loc No'] || '',
+    plantName: row.Location || '',
+    location: row.Street || '',
+    city: row.Block || '',
+    state: '',
+    pincode: '',
+    managerName: '',
+    phone: '',
+    productionCapacity: ''
+  };
+}
+
+/**
+ * Transform supervisor row for frontend
+ */
+function transformSupervisor(row) {
+  return {
+    id: row.SupervisorID || '',
+    supervisorName: row.Name || '',
+    employeeId: row.SupervisorID || '',
+    email: row.Email || '',
+    phone: row.Phone || '',
+    department: row.Role || '',
+    assignedWarehouse: row.Address || '',
+    status: row.Status || 'Active',
+    // Keep original keys for GRN page compatibility
+    Name: row.Name || '',
+    Role: row.Role || '',
+    name: row.Name || '',
+    role: row.Role || ''
+  };
+}
+
+/**
+ * Transform driver row for frontend
+ */
+function transformDriver(row) {
+  return {
+    id: row.DriverID || '',
+    driverName: row.Name || '',
+    licenseNumber: row.LicenseNumber || '',
+    licenseExpiry: '',
+    phone: row.Phone || '',
+    address: row.Address || '',
+    aadhar: '',
+    email: row.Email || '',
+    status: row.Status || 'Active'
+  };
+}
+
+/**
+ * Transform vehicle row for frontend
+ */
+function transformVehicle(row) {
+  return {
+    id: row.VehicleNumber || '',
+    vehicleNumber: row.VehicleNumber || '',
+    vehicleType: row.VehicleType || '',
+    manufacturer: row.VehicleSize || '',
+    registrationDate: row.DateAdded || '',
+    fitnessExpiryDate: '',
+    insuranceExpiryDate: '',
+    capacity: '',
+    ownerName: row.OwnerName || '',
+    status: row.Status || 'Active'
+  };
+}
+
+/**
+ * Transform stock row for frontend
+ */
+function transformStock(row) {
+  return {
+    id: (row.WarehouseCode || '') + '-' + (row.ItemCode || ''),
+    itemCode: row.ItemCode || '',
+    itemName: row.ItemName || '',
+    warehouse: row.WarehouseName || row.WarehouseCode || '',
+    warehouseCode: row.WarehouseCode || '',
+    quantity: row.TotalQty || 0,
+    reorderLevel: 10,
+    unitPrice: 0,
+    uom: row.UOM || 'PCS',
+    qtyInPacks: row.QtyInPacks || 0,
+    lastUpdated: row.LastUpdated || ''
+  };
+}
+
+/**
+ * Transform goods in transit row for frontend
+ */
+function transformGoodsInTransit(row) {
+  return {
+    id: (row.DCNumber || '') + '-' + (row.ItemCode || ''),
+    dispatchNumber: row.DCNumber || '',
+    dcNumber: row.DCNumber || '',
+    itemCode: row.ItemCode || '',
+    itemName: row.ItemName || '',
+    quantity: row.TotalQty || 0,
+    sourceWarehouse: row.LocationFrom || '',
+    destinationPlant: row.LocationTo || '',
+    driverName: '',
+    vehicleNumber: '',
+    dispatchDate: row.DispatchDate || '',
+    expectedDeliveryDate: '',
+    isDelayed: false,
+    status: row.Status || 'InTransit'
+  };
+}
+
+/**
+ * Transform FG stock row for frontend
+ */
+function transformFGStock(row) {
+  return {
+    id: (row.WarehouseCode || '') + '-' + (row.ItemCode || ''),
+    itemCode: row.ItemCode || '',
+    itemName: row.ItemName || '',
+    quantity: row.Qty || 0,
+    warehouse: row.WarehouseCode || '',
+    unitPrice: 0,
+    uom: row.UOM || 'PCS',
+    value: 0
+  };
+}
+
+/**
+ * Transform rejected stock row for frontend
+ */
+function transformRejectedStock(row) {
+  return {
+    id: (row.ItemCode || '') + '-' + (row.RejectionDate || ''),
+    itemCode: row.ItemCode || '',
+    itemName: row.ItemName || '',
+    quantity: row.Qty || 0,
+    rejectionReason: row.Remarks || '',
+    rejectionDate: row.RejectionDate || '',
+    status: 'Rejected',
+    virtualWarehouse: row.VirtualWarehouse || '',
+    productionPlant: row.ProductionPlant || ''
+  };
+}
+
+/**
+ * Transform dispatch row for frontend
+ */
+function transformDispatch(row) {
+  return {
+    id: row.DCNumber || '',
+    dcNumber: row.DCNumber || '',
+    requisitionNumber: row.RequisitionNumber || '',
+    supervisorName: row.SupervisorName || '',
+    driverName: row.DriverName || '',
+    vehicleNumber: row.VehicleNumber || '',
+    dispatchDate: row.Date || '',
+    locationFrom: row.LocationFrom || '',
+    locationFromAddress: row.LocationFromAddress || '',
+    locationFromGST: row.LocationFromGST || '',
+    locationFromPhone: row.LocationFromPhone || '',
+    locationTo: row.LocationTo || '',
+    locationToAddress: row.LocationToAddress || '',
+    locationToGST: row.LocationToGST || '',
+    locationToPhone: row.LocationToPhone || '',
+    status: row.Status || 'Open',
+    totalItems: row.TotalItems || 0
+  };
+}
+
+/**
+ * Transform receipt row for frontend
+ */
+function transformReceipt(row) {
+  return {
+    id: row.ReceiptNumber || '',
+    receiptNumber: row.ReceiptNumber || '',
+    dcNumber: row.DCNumber || '',
+    requisitionNumber: row.RequisitionNumber || '',
+    deliveryChallanDate: row.DeliveryChallanDate || '',
+    receiptDate: row.ReceiptDate || '',
+    entryDate: row.EntryDate || '',
+    receiverName: row.ReceiverName || '',
+    vehicleNumber: row.VehicleNumber || '',
+    gatePassNumber: row.GatePassNumber || '',
+    vendorPocName: row.ReceiverName || '',
+    status: row.Status || 'Open',
+    totalItems: row.TotalItems || 0
+  };
+}
+
+/**
+ * Transform requisition row for frontend
+ */
+function transformRequisition(row) {
+  return {
+    id: row.RequisitionNumber || '',
+    requisitionNumber: row.RequisitionNumber || '',
+    requestedBy: row.RequestedBy || '',
+    requestedDate: row.RequestedDate || '',
+    productionDate: row.ProductionDate || '',
+    productionPlant: row.ProductionPlant || '',
+    destinationWarehouse: row.DestinationWarehouse || '',
+    status: row.Status || 'Open',
+    dateCreated: row.DateCreated || ''
+  };
+}
+
+/**
+ * Transform reconciliation row for frontend
+ */
+function transformReconciliation(row) {
+  return {
+    id: row.RecoID || '',
+    recoId: row.RecoID || '',
+    dcNumber: row.DCNumber || '',
+    receiptNumber: row.ReceiptNumber || '',
+    itemCode: row.ItemCode || '',
+    itemName: row.ItemName || '',
+    dispatchQty: row.DispatchQty || 0,
+    receiptQty: row.ReceiptQty || 0,
+    variance: row.Variance || 0,
+    varianceType: row.VarianceType || '',
+    remarks: row.Remarks || '',
+    status: row.Status || 'Open',
+    resolvedDate: row.ResolvedDate || ''
+  };
+}
+
+/**
+ * Transform production issue row for frontend
+ */
+function transformProductionIssue(row) {
+  return {
+    id: row.IssueNumber || '',
+    issueNumber: row.IssueNumber || '',
+    plantName: row.ProductionPlant || '',
+    productionPlant: row.ProductionPlant || '',
+    itemCode: row.ItemCode || '',
+    itemName: row.ItemName || '',
+    quantity: row.QtyIssued || 0,
+    issueDate: row.IssueDate || '',
+    issuedBy: row.IssuedBy || '',
+    uom: row.UOM || 'PCS',
+    batchId: row.BatchID || '',
+    status: 'Issued',
+    remarks: row.Remarks || ''
+  };
+}
+
+/**
+ * Transform production output row for frontend
+ */
+function transformProductionOutput(row) {
+  return {
+    id: row.OutputNumber || '',
+    outputNumber: row.OutputNumber || '',
+    plantName: row.ProductionPlant || '',
+    productionPlant: row.ProductionPlant || '',
+    itemCode: row.FGItemCode || '',
+    itemName: row.FGItemName || '',
+    quantity: row.QtyProduced || 0,
+    rejectedQuantity: 0,
+    outputDate: row.ProductionDate || '',
+    uom: row.UOM || 'PCS',
+    status: row.Status || 'Completed'
+  };
+}
+
+/**
+ * Transform supervisor score row for frontend
+ */
+function transformSupervisorScore(row) {
+  return {
+    id: row.SupervisorID || '',
+    supervisorName: row.SupervisorName || '',
+    tasksCompleted: row.TotalDispatches || 0,
+    onTimeDelivery: '95%',
+    accuracyScore: row.AccuracyScore || 100,
+    qualityScore: 90,
+    overallScore: row.AccuracyScore || 100,
+    period: 'Current',
+    totalReceipts: row.TotalReceipts || 0,
+    varianceCount: row.VarianceCount || 0,
+    rank: row.Rank || 0
+  };
+}
+
+/**
+ * Transform GRN row for frontend
+ */
+function transformGRN(row) {
+  return {
+    id: row.GRNNumber || '',
+    GRNNumber: row.GRNNumber || '',
+    GatePassNumber: row.GatePassNumber || '',
+    VendorCode: row.VendorCode || '',
+    VendorName: row.VendorName || '',
+    PONumber: row.PONumber || '',
+    PODate: row.PODate || '',
+    CommittedDeliveryDate: row.CommittedDeliveryDate || '',
+    VendorDocNumber: row.VendorDocNumber || '',
+    VendorDocDate: row.VendorDocDate || '',
+    ReceiptDate: row.ReceiptDate || '',
+    EntryDate: row.EntryDate || '',
+    ReceiverName: row.ReceiverName || '',
+    VehicleNumber: row.VehicleNumber || '',
+    Status: row.Status || 'Open',
+    TotalItems: row.TotalItems || 0,
+    Remarks: row.Remarks || '',
+    grnNumber: row.GRNNumber || '',
+    status: row.Status || 'Open'
+  };
+}
+
+/**
+ * Transform gate pass row for frontend
+ */
+function transformGatePass(row) {
+  return {
+    id: row.GatePassNumber || '',
+    GatePassNumber: row.GatePassNumber || '',
+    gatePassNumber: row.GatePassNumber || '',
+    type: row.Type || '',
+    vehicleNumber: row.VehicleNumber || '',
+    VehicleNumber: row.VehicleNumber || '',
+    date: row.Date || '',
+    dcNumber: row.DCNumber || '',
+    grnNumber: row.GRNNumber || '',
+    status: row.Status || 'Open'
+  };
+}
+
+/**
+ * Transform line item row for frontend
+ */
+function transformLineItem(row) {
+  return {
+    id: (row.GRNNumber || row.DCNumber || row.ReceiptNumber || row.RequisitionNumber || '') + '-' + (row.LineNumber || ''),
+    lineNumber: row.LineNumber || '',
+    itemCode: row.ItemCode || '',
+    itemName: row.ItemName || '',
+    qtyPerPack: row.QtyPerPack || 1,
+    uom: row.UOM || 'PCS',
+    numberOfPacks: row.NumberOfPacks || 0,
+    totalQty: row.TotalQty || 0,
+    totalQtyRequired: row.QtyRequired || 0,
+    qtyDispatched: row.QtyDispatched || 0,
+    qtyPending: row.QtyPending || 0,
+    batchId: row.BatchID || '',
+    grnStickerGenerated: row.GRNStickerGenerated || '',
+    grnStickerStuck: row.GRNStickerStuck || '',
+    grnStickerPut: row.GRNStickerPut || '',
+    remarks: row.Remarks || '',
+    // Keep originals for GRN page
+    GRNNumber: row.GRNNumber || '',
+    DCNumber: row.DCNumber || '',
+    ReceiptNumber: row.ReceiptNumber || '',
+    RequisitionNumber: row.RequisitionNumber || ''
+  };
 }
 
 /**
@@ -662,7 +913,7 @@ function logAudit(userEmail, action, module, documentNumber, details) {
  * Validate item code exists in Item Master
  */
 function validateItemCode(itemCode) {
-  const items = getItems();
+  const items = getRawSheetData('Item Master');
   return items.some(item => item.ItemCode === itemCode);
 }
 
@@ -670,31 +921,31 @@ function validateItemCode(itemCode) {
  * Validate warehouse code exists
  */
 function validateWarehouseCode(warehouseCode) {
-  const warehouses = getWarehouses();
+  const warehouses = getRawSheetData('Warehouse Master');
   return warehouses.some(w => w['Warehouse Code'] === warehouseCode);
 }
 
 /**
- * Get item details by code
+ * Get item details by code (raw - for internal use)
  */
 function getItemByCode(itemCode) {
-  const items = getItems();
+  const items = getRawSheetData('Item Master');
   return items.find(item => item.ItemCode === itemCode);
 }
 
 /**
- * Get warehouse details by code
+ * Get warehouse details by code (raw - for internal use)
  */
 function getWarehouseByCode(warehouseCode) {
-  const warehouses = getWarehouses();
+  const warehouses = getRawSheetData('Warehouse Master');
   return warehouses.find(w => w['Warehouse Code'] === warehouseCode);
 }
 
 /**
- * Get vendor details by code
+ * Get vendor details by code (raw - for internal use)
  */
 function getVendorByCode(vendorCode) {
-  const vendors = getVendors();
+  const vendors = getRawSheetData('Vendor & Customer Master');
   return vendors.find(v => v['BP Code'] === vendorCode);
 }
 
@@ -704,7 +955,7 @@ function getVendorByCode(vendorCode) {
  * Get all vendors
  */
 function getVendors() {
-  return getSheetData('Vendor & Customer Master');
+  return getRawSheetData('Vendor & Customer Master').map(transformVendor);
 }
 
 /**
@@ -742,8 +993,8 @@ function addVendor(params) {
 function searchVendors(query) {
   const vendors = getVendors();
   return vendors.filter(v =>
-    v['BP Name'].toString().toLowerCase().includes(query.toLowerCase()) ||
-    v['BP Code'].toString().toLowerCase().includes(query.toLowerCase())
+    (v.vendorName || '').toString().toLowerCase().includes(query.toLowerCase()) ||
+    (v.vendorCode || '').toString().toLowerCase().includes(query.toLowerCase())
   );
 }
 
@@ -753,7 +1004,7 @@ function searchVendors(query) {
  * Get all items
  */
 function getItems() {
-  return getSheetData('Item Master');
+  return getRawSheetData('Item Master').map(transformItem);
 }
 
 /**
@@ -785,8 +1036,8 @@ function addItem(params) {
 function searchItems(query) {
   const items = getItems();
   return items.filter(item =>
-    item.ItemCode.toString().toLowerCase().includes(query.toLowerCase()) ||
-    item['Item Description'].toString().toLowerCase().includes(query.toLowerCase())
+    (item.itemCode || '').toString().toLowerCase().includes(query.toLowerCase()) ||
+    (item.itemName || '').toString().toLowerCase().includes(query.toLowerCase())
   );
 }
 
@@ -811,7 +1062,7 @@ function getUOMList() {
  * Get all warehouses
  */
 function getWarehouses() {
-  return getSheetData('Warehouse Master');
+  return getRawSheetData('Warehouse Master').map(transformWarehouse);
 }
 
 /**
@@ -842,7 +1093,7 @@ function addWarehouse(params) {
  * Get all production plants
  */
 function getPlants() {
-  return getSheetData('Production plant master');
+  return getRawSheetData('Production plant master').map(transformPlant);
 }
 
 /**
@@ -866,7 +1117,7 @@ function addPlant(params) {
  * Get all supervisors
  */
 function getSupervisors() {
-  return getSheetData('Supervisor Master');
+  return getRawSheetData('Supervisor Master').map(transformSupervisor);
 }
 
 /**
@@ -913,7 +1164,7 @@ function updateSupervisor(params) {
  * Get all drivers
  */
 function getDrivers() {
-  return getSheetData('Driver Master');
+  return getRawSheetData('Driver Master').map(transformDriver);
 }
 
 /**
@@ -960,7 +1211,7 @@ function updateDriver(params) {
  * Get all vehicles
  */
 function getVehicles() {
-  return getSheetData('Vehicle Master');
+  return getRawSheetData('Vehicle Master').map(transformVehicle);
 }
 
 /**
@@ -1043,7 +1294,7 @@ function createGRN(params) {
  * Get all GRNs
  */
 function getGRNs() {
-  return getSheetData('GRN Transactions');
+  return getRawSheetData('GRN Transactions').map(transformGRN);
 }
 
 /**
@@ -1055,7 +1306,7 @@ function getGRNById(grnNumber) {
 
   if (!grn) return null;
 
-  const lineItems = getSheetData('GRN Line Items').filter(li => li.GRNNumber === grnNumber);
+  const lineItems = getRawSheetData('GRN Line Items').filter(li => li.GRNNumber === grnNumber).map(transformLineItem);
 
   return {
     ...grn,
@@ -1223,7 +1474,7 @@ function createRequisition(params) {
  * Get all requisitions
  */
 function getRequisitions() {
-  return getSheetData('Material Requisitions');
+  return getRawSheetData('Material Requisitions').map(transformRequisition);
 }
 
 /**
@@ -1231,11 +1482,11 @@ function getRequisitions() {
  */
 function getRequisitionById(requisitionNumber) {
   const requisitions = getRequisitions();
-  const req = requisitions.find(r => r.RequisitionNumber === requisitionNumber);
+  const req = requisitions.find(r => r.requisitionNumber === requisitionNumber);
 
   if (!req) return null;
 
-  const lineItems = getSheetData('Requisition Line Items').filter(li => li.RequisitionNumber === requisitionNumber);
+  const lineItems = getRawSheetData('Requisition Line Items').filter(li => li.RequisitionNumber === requisitionNumber).map(transformLineItem);
 
   return {
     ...req,
@@ -1321,7 +1572,7 @@ function createDispatch(params) {
  * Get all dispatches
  */
 function getDispatches() {
-  return getSheetData('Internal Dispatches');
+  return getRawSheetData('Internal Dispatches').map(transformDispatch);
 }
 
 /**
@@ -1329,11 +1580,11 @@ function getDispatches() {
  */
 function getDispatchById(dcNumber) {
   const dispatches = getDispatches();
-  const dispatch = dispatches.find(d => d.DCNumber === dcNumber);
+  const dispatch = dispatches.find(d => d.dcNumber === dcNumber);
 
   if (!dispatch) return null;
 
-  const lineItems = getSheetData('Dispatch Line Items').filter(li => li.DCNumber === dcNumber);
+  const lineItems = getRawSheetData('Dispatch Line Items').filter(li => li.DCNumber === dcNumber).map(transformLineItem);
 
   return {
     ...dispatch,
@@ -1473,7 +1724,7 @@ function createReceipt(params) {
  * Get all receipts
  */
 function getReceipts() {
-  return getSheetData('Internal Receipts');
+  return getRawSheetData('Internal Receipts').map(transformReceipt);
 }
 
 /**
@@ -1481,11 +1732,11 @@ function getReceipts() {
  */
 function getReceiptById(receiptNumber) {
   const receipts = getReceipts();
-  const receipt = receipts.find(r => r.ReceiptNumber === receiptNumber);
+  const receipt = receipts.find(r => r.receiptNumber === receiptNumber);
 
   if (!receipt) return null;
 
-  const lineItems = getSheetData('Receipt Line Items').filter(li => li.ReceiptNumber === receiptNumber);
+  const lineItems = getRawSheetData('Receipt Line Items').filter(li => li.ReceiptNumber === receiptNumber).map(transformLineItem);
 
   return {
     ...receipt,
@@ -1621,16 +1872,16 @@ function updateStockOnReceipt(warehouseCode, itemCode, quantity) {
  * Get all open reconciliations
  */
 function getOpenReconciliations() {
-  const reconciliations = getSheetData('Reconciliation');
-  return reconciliations.filter(r => r.Status === 'Open');
+  const reconciliations = getRawSheetData('Reconciliation');
+  return reconciliations.filter(r => r.Status === 'Open').map(transformReconciliation);
 }
 
 /**
  * Get reconciliations by DC number
  */
 function getReconciliationsByDC(dcNumber) {
-  const reconciliations = getSheetData('Reconciliation');
-  return reconciliations.filter(r => r.DCNumber === dcNumber);
+  const reconciliations = getRawSheetData('Reconciliation');
+  return reconciliations.filter(r => r.DCNumber === dcNumber).map(transformReconciliation);
 }
 
 /**
@@ -1654,23 +1905,23 @@ function reconcileDocument(params) {
  * Get stock by warehouse
  */
 function getStockByWarehouse(warehouseCode) {
-  const stock = getSheetData('Stock Master');
-  return stock.filter(s => s.WarehouseCode === warehouseCode);
+  const stock = getRawSheetData('Stock Master');
+  return stock.filter(s => s.WarehouseCode === warehouseCode).map(transformStock);
 }
 
 /**
  * Get overall stock across all warehouses
  */
 function getOverallStock() {
-  return getSheetData('Stock Master');
+  return getRawSheetData('Stock Master').map(transformStock);
 }
 
 /**
  * Get goods in transit
  */
 function getGoodsInTransit() {
-  const goodsInTransit = getSheetData('Goods In Transit');
-  return goodsInTransit.filter(g => g.Status === 'InTransit');
+  const goodsInTransit = getRawSheetData('Goods In Transit');
+  return goodsInTransit.filter(g => g.Status === 'InTransit').map(transformGoodsInTransit);
 }
 
 // ==================== PRODUCTION OPERATIONS ====================
@@ -1706,7 +1957,7 @@ function createProductionIssue(params) {
  * Get all production issues
  */
 function getProductionIssues() {
-  return getSheetData('Production Issues');
+  return getRawSheetData('Production Issues').map(transformProductionIssue);
 }
 
 /**
@@ -1760,7 +2011,7 @@ function createProductionOutput(params) {
  * Get all production output
  */
 function getProductionOutput() {
-  return getSheetData('Production Output');
+  return getRawSheetData('Production Output').map(transformProductionOutput);
 }
 
 // ==================== FINISHED GOODS STOCK OPERATIONS ====================
@@ -1769,7 +2020,7 @@ function getProductionOutput() {
  * Get FG stock
  */
 function getFGStock() {
-  return getSheetData('FG Stock Master');
+  return getRawSheetData('FG Stock Master').map(transformFGStock);
 }
 
 /**
@@ -1800,14 +2051,14 @@ function dispatchFG(params) {
  * Get supervisor scores
  */
 function getSupervisorScores() {
-  return getSheetData('Supervisor Scores');
+  return getRawSheetData('Supervisor Scores').map(transformSupervisorScore);
 }
 
 /**
  * Update supervisor score based on accuracy
  */
 function updateSupervisorScore(supervisorID) {
-  const supervisors = getSupervisors();
+  const supervisors = getRawSheetData('Supervisor Master');
   const supervisor = supervisors.find(s => s.SupervisorID === supervisorID);
 
   if (!supervisor) {
@@ -1815,11 +2066,11 @@ function updateSupervisorScore(supervisorID) {
   }
 
   // Count dispatches and receipts
-  const dispatches = getDispatches().filter(d => d.SupervisorName === supervisor.Name);
-  const receipts = getReceipts();
+  const dispatches = getRawSheetData('Internal Dispatches').filter(d => d.SupervisorName === supervisor.Name);
+  const receipts = getRawSheetData('Internal Receipts');
 
   // Calculate accuracy based on reconciliations
-  const reconciliations = getSheetData('Reconciliation');
+  const reconciliations = getRawSheetData('Reconciliation');
   const supervisorReconciliations = reconciliations.filter(r => {
     const dispatch = dispatches.find(d => d.DCNumber === r.DCNumber);
     return dispatch !== undefined;
@@ -1833,7 +2084,7 @@ function updateSupervisorScore(supervisorID) {
   const varianceCount = supervisorReconciliations.filter(r => r.Variance > 0).length;
 
   // Get all supervisor scores to calculate rank
-  const supervisorScores = getSupervisorScores();
+  const supervisorScores = getRawSheetData('Supervisor Scores');
   const existingScore = supervisorScores.find(s => s.SupervisorID === supervisorID);
 
   const scoreData = {
@@ -1853,7 +2104,7 @@ function updateSupervisorScore(supervisorID) {
   }
 
   // Calculate rank (higher score = better rank)
-  const allScores = getSheetData('Supervisor Scores').sort((a, b) => b.AccuracyScore - a.AccuracyScore);
+  const allScores = getRawSheetData('Supervisor Scores').sort((a, b) => b.AccuracyScore - a.AccuracyScore);
   const rank = allScores.findIndex(s => s.SupervisorID === supervisorID) + 1;
 
   updateRowInSheet('Supervisor Scores', 'SupervisorID', supervisorID, { 'Rank': rank });
@@ -1990,7 +2241,7 @@ function getActivityType(moduleName) {
  * Get all rejected stock
  */
 function getRejectedStock() {
-  return getSheetData('Rejected Stock');
+  return getRawSheetData('Rejected Stock').map(transformRejectedStock);
 }
 
 // ==================== PRODUCTION RECONCILIATION ====================
@@ -2055,8 +2306,8 @@ function updateReconciliation(params) {
  * Get open gate passes
  */
 function getOpenGatePasses() {
-  const gatePasses = getSheetData('Gate Pass Register');
-  return gatePasses.filter(gp => gp.Status === 'Open');
+  const gatePasses = getRawSheetData('Gate Pass Register');
+  return gatePasses.filter(gp => gp.Status === 'Open').map(transformGatePass);
 }
 
 // ==================== DELETE ROW UTILITY ====================
