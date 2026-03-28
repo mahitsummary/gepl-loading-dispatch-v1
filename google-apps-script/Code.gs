@@ -348,6 +348,8 @@ function routeRequest(action, params) {
     // Gate pass
     case 'getOpenGatePasses':
       return { success: true, data: getOpenGatePasses() };
+    case 'closeGatePass':
+      return { success: true, data: closeGatePass(params) };
 
     default:
       return { success: false, error: `Unknown action: ${action}` };
@@ -1425,20 +1427,20 @@ function addGRNLineItem(params) {
  * Generate gate pass (called from createGRN, but can be called separately)
  */
 function generateGatePass(params) {
-  const gatePassNumber = generateSequentialID('GP', 'Gate Pass Register', 'GatePassNumber');
+  var sheet = ss.getSheetByName('Gate Pass Register');
+  var gatePassNumber = generateSequentialID('GP', 'Gate Pass Register', 'GatePassNumber');
 
-  const newGatePass = {
-    'GatePassNumber': gatePassNumber,
-    'Type': params.Type || 'Inward',
-    'VehicleNumber': params.VehicleNumber || '',
-    'Date': new Date(),
-    'DCNumber': params.DCNumber || '',
-    'GRNNumber': params.GRNNumber || '',
-    'Status': 'Open'
-  };
+  sheet.appendRow([
+    gatePassNumber,
+    params.type || params.Type || 'Inward',
+    params.vehicleNumber || params.VehicleNumber || '',
+    new Date().toISOString(),
+    params.dcNumber || params.DCNumber || '',
+    params.grnNumber || params.GRNNumber || '',
+    'Open'
+  ]);
 
-  appendRowToSheet('Gate Pass Register', newGatePass);
-  return newGatePass;
+  return { gatePassNumber: gatePassNumber };
 }
 
 /**
@@ -2481,8 +2483,62 @@ function updateReconciliation(params) {
  * Get open gate passes
  */
 function getOpenGatePasses() {
-  const gatePasses = getRawSheetData('Gate Pass Register');
-  return gatePasses.filter(gp => gp.Status === 'Open').map(transformGatePass);
+  var sheet = ss.getSheetByName('Gate Pass Register');
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var headers = data[0];
+  var result = [];
+
+  // Get GRN data for vendor info
+  var grnSheet = ss.getSheetByName('GRN Transactions');
+  var grnData = grnSheet ? grnSheet.getDataRange().getValues() : [];
+  var grnHeaders = grnData.length > 0 ? grnData[0] : [];
+
+  for (var i = 1; i < data.length; i++) {
+    var row = {};
+    for (var j = 0; j < headers.length; j++) {
+      row[headers[j]] = data[i][j];
+    }
+
+    if (row.Status === 'Open') {
+      row.id = i;
+
+      // Enrich with GRN vendor info if available
+      if (row.GRNNumber && grnData.length > 1) {
+        var grnNumCol = grnHeaders.indexOf('GRNNumber');
+        var vendorCol = grnHeaders.indexOf('VendorName');
+        var poCol = grnHeaders.indexOf('PONumber');
+        for (var g = 1; g < grnData.length; g++) {
+          if (grnData[g][grnNumCol] === row.GRNNumber) {
+            row.VendorName = vendorCol >= 0 ? grnData[g][vendorCol] : '';
+            row.PONumber = poCol >= 0 ? grnData[g][poCol] : '';
+            break;
+          }
+        }
+      }
+
+      result.push(row);
+    }
+  }
+  return result;
+}
+
+function closeGatePass(params) {
+  var sheet = ss.getSheetByName('Gate Pass Register');
+  if (!sheet) return { success: false, error: 'Sheet not found' };
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var gpCol = headers.indexOf('GatePassNumber');
+  var statusCol = headers.indexOf('Status');
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][gpCol] === (params.gatePassNumber || params.GatePassNumber)) {
+      sheet.getRange(i + 1, statusCol + 1).setValue('Closed');
+      return { success: true };
+    }
+  }
+  return { success: false, error: 'Gate pass not found' };
 }
 
 // ==================== DELETE ROW UTILITY ====================

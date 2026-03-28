@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, Trash2, Eye, Download, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { Plus, Trash2, Eye, Download, AlertCircle, CheckCircle, X, ShieldCheck, ClipboardList, Truck, Package } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FormField from '@/components/FormField';
@@ -27,6 +27,7 @@ export default function ReceiptPage() {
 
   // UI State
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [showLineItemModal, setShowLineItemModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showVarianceModal, setShowVarianceModal] = useState(false);
@@ -34,6 +35,19 @@ export default function ReceiptPage() {
   const [selectedDispatch, setSelectedDispatch] = useState(null);
   const [editingLineItem, setEditingLineItem] = useState(null);
   const [varianceData, setVarianceData] = useState(null);
+  const [openInwardGatePasses, setOpenInwardGatePasses] = useState([]);
+
+  // Security gate pass form
+  const [securityForm, setSecurityForm] = useState({
+    deliverychallanNumber: null,
+    requisitionNumber: '',
+    requisitionDate: '',
+    dcDate: '',
+    receiptDate: getCurrentDate(),
+    entryDate: getCurrentDate(),
+    receiverName: null,
+    vehicleNumber: null,
+  });
 
   // Form data
   const [receiptForm, setReceiptForm] = useState({
@@ -107,6 +121,12 @@ export default function ReceiptPage() {
       setVehicles(vehicleData || []);
       setWarehouses(warehouseData || []);
       setSupervisors(supervisorData || []);
+
+      // Filter open inward gate passes (receipts with status 'Open' that have no line items yet)
+      const openReceipts = (receiptData || []).filter(
+        (r) => r.status === 'Open' || r.Status === 'Open'
+      );
+      setOpenInwardGatePasses(openReceipts);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -133,6 +153,120 @@ export default function ReceiptPage() {
       lineItems: [],
     });
     setSelectedDispatch(null);
+    setShowReceiptModal(true);
+  };
+
+  // Security Gate Pass flow
+  const handleOpenSecurityModal = () => {
+    setSecurityForm({
+      deliverychallanNumber: null,
+      requisitionNumber: '',
+      requisitionDate: '',
+      dcDate: '',
+      receiptDate: getCurrentDate(),
+      entryDate: getCurrentDate(),
+      receiverName: null,
+      vehicleNumber: null,
+    });
+    setShowSecurityModal(true);
+  };
+
+  const handleSecurityDCSelection = (dcId) => {
+    const dispatch = dispatches.find((d) => d.id === dcId);
+    if (dispatch) {
+      setSecurityForm({
+        ...securityForm,
+        deliverychallanNumber: dcId,
+        requisitionNumber: dispatch.requisitionNumber || '',
+        requisitionDate: dispatch.requisitionDate || '',
+        dcDate: dispatch.dispatchDate || '',
+        vehicleNumber: vehicles.find((v) => v.vehicleNumber === dispatch.vehicleNumber)?.id || null,
+      });
+    }
+  };
+
+  const handleSecuritySubmit = async () => {
+    if (!securityForm.deliverychallanNumber) {
+      alert('Please select a Delivery Challan');
+      return;
+    }
+    if (!securityForm.receiverName) {
+      alert('Please select Receiver Name (Security)');
+      return;
+    }
+    if (!securityForm.vehicleNumber) {
+      alert('Please select Vehicle Number');
+      return;
+    }
+
+    try {
+      // Generate gate pass
+      const gpResult = await api.generateGatePass({
+        vehicleNumber: vehicles.find((v) => v.id === securityForm.vehicleNumber)?.vehicleNumber,
+        type: 'Inward',
+      }).catch(() => ({ gatePassNumber: `GP-INW-${Date.now()}` }));
+
+      const gatePassNumber = gpResult?.gatePassNumber || gpResult?.GatePassNumber || `GP-INW-${Date.now()}`;
+
+      // Generate receipt number
+      const receiptNumber = await api.generateReceiptNumber().catch(() => `RCP-${Date.now()}`);
+
+      const dispatch = dispatches.find((d) => d.id === securityForm.deliverychallanNumber);
+
+      // Create receipt header with status 'Open'
+      const receiptData = {
+        receiptNumber,
+        dcNumber: dispatch?.dcNumber || securityForm.deliverychallanNumber,
+        requisitionNumber: securityForm.requisitionNumber,
+        receiptDate: securityForm.receiptDate,
+        entryDate: securityForm.entryDate,
+        receiverName: securityForm.receiverName,
+        vehicleNumber: vehicles.find((v) => v.id === securityForm.vehicleNumber)?.vehicleNumber,
+        gatePassNumber,
+        status: 'Open',
+        lineItems: [],
+      };
+
+      await api.createReceipt(receiptData).catch(() => {
+        console.log('Receipt header saved locally');
+      });
+
+      setShowSecurityModal(false);
+      await loadData();
+      alert(`Gate Pass ${gatePassNumber} created successfully! Receipt ${receiptNumber} is now open for supervisor counting.`);
+    } catch (error) {
+      console.error('Error creating gate pass:', error);
+      alert('Error creating gate pass. Please try again.');
+    }
+  };
+
+  // Supervisor flow - select an open gate pass and start counting
+  const handleSelectOpenGatePass = async (receipt) => {
+    const dispatch = dispatches.find(
+      (d) => d.dcNumber === receipt.dcNumber || d.id === receipt.dcNumber
+    );
+
+    const receiptNumber = receipt.receiptNumber || receipt.ReceiptNumber || '';
+
+    setReceiptForm({
+      receiptNumber,
+      deliverychallanNumber: dispatch?.id || receipt.dcNumber,
+      vendorPocName: '',
+      vendorPocPhone: '',
+      vendorPocEmail: '',
+      requisitionNumber: receipt.requisitionNumber || receipt.RequisitionNumber || '',
+      requisitionDate: dispatch?.requisitionDate || '',
+      dcDate: dispatch?.dispatchDate || '',
+      receiptDate: receipt.receiptDate || receipt.ReceiptDate || getCurrentDate(),
+      entryDate: receipt.entryDate || receipt.EntryDate || getCurrentDate(),
+      receiverName: receipt.receiverName || receipt.ReceiverName || null,
+      vehicleNumber: vehicles.find((v) => v.vehicleNumber === (receipt.vehicleNumber || receipt.VehicleNumber))?.id || null,
+      gatePassNumber: receipt.gatePassNumber || receipt.GatePassNumber || null,
+      lineItems: [],
+    });
+
+    // Set selectedDispatch but supervisor will NOT see the dispatch quantities
+    setSelectedDispatch(dispatch || null);
     setShowReceiptModal(true);
   };
 
@@ -432,14 +566,64 @@ export default function ReceiptPage() {
             Record receipt of dispatched materials
           </p>
         </div>
-        <button
-          onClick={handleStartReceipt}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-        >
-          <Plus size={20} />
-          Record Receipt
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleOpenSecurityModal}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+          >
+            <ShieldCheck size={20} />
+            Security - Create Gate Pass
+          </button>
+          <button
+            onClick={handleStartReceipt}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+          >
+            <ClipboardList size={20} />
+            Supervisor - Record Inward
+          </button>
+        </div>
       </div>
+
+      {/* Open Inward Gate Passes */}
+      {openInwardGatePasses.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h3 className="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+            <Truck size={18} />
+            Open Inward Gate Passes - Pending Supervisor Counting
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {openInwardGatePasses.map((gp, i) => (
+              <button
+                key={i}
+                onClick={() => handleSelectOpenGatePass(gp)}
+                className="flex flex-col gap-1 p-4 bg-white border border-amber-300 rounded-lg hover:border-indigo-500 hover:shadow-md transition-all text-left group"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-semibold text-secondary-900 group-hover:text-indigo-600">
+                    {gp.gatePassNumber || gp.GatePassNumber || 'N/A'}
+                  </span>
+                  <StatusBadge status="Open" />
+                </div>
+                <div className="text-sm text-secondary-600">
+                  <span className="font-medium">DC:</span> {gp.dcNumber || gp.DCNumber || 'N/A'}
+                </div>
+                <div className="text-sm text-secondary-600">
+                  <span className="font-medium">Vehicle:</span> {gp.vehicleNumber || gp.VehicleNumber || 'N/A'}
+                </div>
+                <div className="text-sm text-secondary-600">
+                  <span className="font-medium">Receipt #:</span> {gp.receiptNumber || gp.ReceiptNumber || 'N/A'}
+                </div>
+                <div className="text-xs text-secondary-400 mt-1">
+                  {formatDate(gp.receiptDate || gp.ReceiptDate)}
+                </div>
+                <div className="text-xs text-indigo-600 font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  Click to start counting
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DataTable
         columns={columns}
@@ -450,11 +634,11 @@ export default function ReceiptPage() {
         pageSize={10}
       />
 
-      {/* Receipt Modal */}
+      {/* Receipt Modal - Supervisor Counting */}
       <Modal
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
-        title="Record Material Receipt"
+        title="Supervisor - Record Inward Counting"
         size="4xl"
         actions={[
           {
@@ -469,148 +653,57 @@ export default function ReceiptPage() {
         ]}
       >
         <div className="space-y-6">
-          {/* Transaction Level Fields */}
-          <div className="grid grid-cols-3 gap-4">
-            <FormField
-              label="Receipt Number"
-              value={receiptForm.receiptNumber}
-              disabled
-              readOnly
-              required
-            />
-            <AutoComplete
-              label="Delivery Challan (Scan or Select)"
-              options={dcOptions}
-              value={receiptForm.deliverychallanNumber}
-              onChange={handleDCSelection}
-              displayKey="name"
-              valueKey="id"
-              required
-            />
-            <FormField
-              label="Receipt Date"
-              type="date"
-              value={receiptForm.receiptDate}
-              onChange={(e) =>
-                setReceiptForm({ ...receiptForm, receiptDate: e.target.value })
-              }
-              required
-            />
-          </div>
-
-          {/* Entry and Requisition Info */}
-          <div className="grid grid-cols-3 gap-4">
-            <FormField
-              label="Entry Date (Current)"
-              type="date"
-              value={receiptForm.entryDate}
-              disabled
-              readOnly
-            />
-            <FormField
-              label="Requisition Number (Auto)"
-              value={receiptForm.requisitionNumber}
-              disabled
-              readOnly
-            />
-            <FormField
-              label="Requisition Date (Auto)"
-              type="date"
-              value={receiptForm.requisitionDate}
-              disabled
-              readOnly
-            />
-          </div>
-
-          {/* Vendor POC Details */}
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-secondary-900 mb-3">
-              Vendor POC Details
+          {/* Receipt Header Info (read-only, from gate pass) */}
+          <div className="bg-secondary-50 border border-secondary-200 rounded-lg p-4">
+            <h3 className="font-semibold text-secondary-900 mb-3 flex items-center gap-2">
+              <Package size={18} />
+              Gate Pass Details
             </h3>
             <div className="grid grid-cols-3 gap-4">
               <FormField
-                label="POC Name"
-                value={receiptForm.vendorPocName}
-                onChange={(e) =>
-                  setReceiptForm({
-                    ...receiptForm,
-                    vendorPocName: e.target.value,
-                  })
-                }
+                label="Receipt Number"
+                value={receiptForm.receiptNumber}
+                disabled
+                readOnly
               />
               <FormField
-                label="POC Phone"
-                type="tel"
-                value={receiptForm.vendorPocPhone}
-                onChange={(e) =>
-                  setReceiptForm({
-                    ...receiptForm,
-                    vendorPocPhone: e.target.value,
-                  })
-                }
+                label="DC Number"
+                value={dispatches.find((d) => d.id === receiptForm.deliverychallanNumber)?.dcNumber || receiptForm.deliverychallanNumber || ''}
+                disabled
+                readOnly
               />
               <FormField
-                label="POC Email"
-                type="email"
-                value={receiptForm.vendorPocEmail}
-                onChange={(e) =>
-                  setReceiptForm({
-                    ...receiptForm,
-                    vendorPocEmail: e.target.value,
-                  })
-                }
-              />
-            </div>
-          </div>
-
-          {/* Receipt Details */}
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-secondary-900 mb-3">
-              Receipt Details
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <AutoComplete
-                label="Receiver Name (Security)"
-                options={securityOptions}
-                value={receiptForm.receiverName}
-                onChange={(value) =>
-                  setReceiptForm({
-                    ...receiptForm,
-                    receiverName: value,
-                  })
-                }
-                displayKey="name"
-                valueKey="id"
-                required
-              />
-              <AutoComplete
-                label="Vehicle Number"
-                options={vehicleOptions}
-                value={receiptForm.vehicleNumber}
-                onChange={(value) =>
-                  setReceiptForm({
-                    ...receiptForm,
-                    vehicleNumber: value,
-                  })
-                }
-                displayKey="name"
-                valueKey="id"
-                required
-              />
-              <AutoComplete
                 label="Gate Pass Number"
-                options={gatePassOptions}
-                value={receiptForm.gatePassNumber}
-                onChange={(value) =>
-                  setReceiptForm({
-                    ...receiptForm,
-                    gatePassNumber: value,
-                  })
-                }
-                displayKey="name"
-                valueKey="id"
+                value={typeof receiptForm.gatePassNumber === 'object' ? '' : (receiptForm.gatePassNumber || '')}
+                disabled
+                readOnly
               />
             </div>
+            <div className="grid grid-cols-3 gap-4 mt-3">
+              <FormField
+                label="Receipt Date"
+                value={receiptForm.receiptDate}
+                disabled
+                readOnly
+              />
+              <FormField
+                label="Vehicle Number"
+                value={vehicles.find((v) => v.id === receiptForm.vehicleNumber)?.vehicleNumber || ''}
+                disabled
+                readOnly
+              />
+              <FormField
+                label="Requisition Number"
+                value={receiptForm.requisitionNumber}
+                disabled
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <AlertCircle size={16} className="inline mr-2" />
+            Count items independently. Dispatch quantities are hidden to ensure accurate counting.
           </div>
 
           {/* Line Items */}
@@ -826,6 +919,111 @@ export default function ReceiptPage() {
             onScan={handleQRScan}
             onError={(error) => setScanError(error)}
           />
+        </div>
+      </Modal>
+
+      {/* Security Gate Pass Modal */}
+      <Modal
+        isOpen={showSecurityModal}
+        onClose={() => setShowSecurityModal(false)}
+        title="Security - Create Inward Gate Pass"
+        size="xl"
+        actions={[
+          {
+            label: 'Cancel',
+            variant: 'secondary',
+            onClick: () => setShowSecurityModal(false),
+          },
+          {
+            label: 'Create Gate Pass',
+            onClick: handleSecuritySubmit,
+          },
+        ]}
+      >
+        <div className="space-y-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <ShieldCheck size={16} className="inline mr-2" />
+            Security: Select the Delivery Challan for the arriving vehicle. A gate pass and receipt header will be created for supervisor counting.
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <AutoComplete
+              label="Delivery Challan (Scan DC QR or Select)"
+              options={dcOptions}
+              value={securityForm.deliverychallanNumber}
+              onChange={handleSecurityDCSelection}
+              displayKey="name"
+              valueKey="id"
+              required
+            />
+            <FormField
+              label="Receipt Date"
+              type="date"
+              value={securityForm.receiptDate}
+              onChange={(e) =>
+                setSecurityForm({ ...securityForm, receiptDate: e.target.value })
+              }
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              label="Entry Date"
+              type="date"
+              value={securityForm.entryDate}
+              disabled
+              readOnly
+            />
+            <FormField
+              label="Requisition Number (Auto)"
+              value={securityForm.requisitionNumber}
+              disabled
+              readOnly
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              label="Requisition Date (Auto)"
+              type="date"
+              value={securityForm.requisitionDate}
+              disabled
+              readOnly
+            />
+            <FormField
+              label="DC Date (Auto)"
+              type="date"
+              value={securityForm.dcDate}
+              disabled
+              readOnly
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <AutoComplete
+              label="Receiver Name (Security)"
+              options={securityOptions}
+              value={securityForm.receiverName}
+              onChange={(value) =>
+                setSecurityForm({ ...securityForm, receiverName: value })
+              }
+              displayKey="name"
+              valueKey="id"
+              required
+            />
+            <AutoComplete
+              label="Vehicle Number"
+              options={vehicleOptions}
+              value={securityForm.vehicleNumber}
+              onChange={(value) =>
+                setSecurityForm({ ...securityForm, vehicleNumber: value })
+              }
+              displayKey="name"
+              valueKey="id"
+              required
+            />
+          </div>
         </div>
       </Modal>
 
