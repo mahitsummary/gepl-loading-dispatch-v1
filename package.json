@@ -7,7 +7,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "gas:push": "cd google-apps-script && clasp push",
+    "gas:deploy": "cd google-apps-script && clasp push && clasp deploy -d \"Auto deploy\"",
+    "gas:pull": "cd google-apps-script && clasp pull",
+    "gas:open": "cd google-apps-script && clasp open",
+    "gas:login": "clasp login"
   },
   "dependencies": {
     "next": "^14.2.0",
