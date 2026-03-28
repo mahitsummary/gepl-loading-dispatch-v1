@@ -42,9 +42,11 @@ export default function DispatchPage() {
     vehicleNumber: null,
     dispatchDate: getCurrentDate(),
     requisitionNumber: null,
+    locationFrom: null,
     locationFromAddress: '',
     locationFromPhone: '',
     locationFromGST: '',
+    locationTo: null,
     locationToAddress: '',
     locationToPhone: '',
     locationToGST: '',
@@ -117,9 +119,11 @@ export default function DispatchPage() {
       vehicleNumber: null,
       dispatchDate: getCurrentDate(),
       requisitionNumber: requisition?.id || null,
+      locationFrom: null,
       locationFromAddress: '',
       locationFromPhone: '',
       locationFromGST: '',
+      locationTo: null,
       locationToAddress: requisition?.plantAddress || '',
       locationToPhone: requisition?.plantPhone || '',
       locationToGST: requisition?.plantGST || '',
@@ -285,9 +289,11 @@ export default function DispatchPage() {
       vehicleNumber: null,
       dispatchDate: getCurrentDate(),
       requisitionNumber: null,
+      locationFrom: null,
       locationFromAddress: '',
       locationFromPhone: '',
       locationFromGST: '',
+      locationTo: null,
       locationToAddress: '',
       locationToPhone: '',
       locationToGST: '',
@@ -367,9 +373,50 @@ export default function DispatchPage() {
   }));
 
   const uomOptions = uomList.map((u) => ({
-    id: u.id,
-    name: u.uomName || u.name,
+    id: typeof u === 'string' ? u : (u.id || u),
+    name: typeof u === 'string' ? u : (u.uomName || u.name || u),
   }));
+
+  const warehouseOptions = warehouses.map((w) => ({
+    id: w.id,
+    name: `${w.warehouseCode || w.code || ''} - ${w.warehouseName || w.name || ''}`,
+  }));
+
+  const handleLocationFromSelect = (warehouseId) => {
+    const wh = warehouses.find(w => w.id === warehouseId);
+    if (wh) {
+      setDispatchForm(prev => ({
+        ...prev,
+        locationFrom: warehouseId,
+        locationFromAddress: `${wh.address || ''}, ${wh.city || ''}, ${wh.state || ''} ${wh.pincode || ''}`.trim(),
+        locationFromPhone: wh.contactPhone || wh.phone || '',
+        locationFromGST: wh.gstin || '',
+      }));
+    } else {
+      setDispatchForm(prev => ({
+        ...prev,
+        locationFrom: warehouseId,
+      }));
+    }
+  };
+
+  const handleLocationToSelect = (warehouseId) => {
+    const wh = warehouses.find(w => w.id === warehouseId);
+    if (wh) {
+      setDispatchForm(prev => ({
+        ...prev,
+        locationTo: warehouseId,
+        locationToAddress: `${wh.address || ''}, ${wh.city || ''}, ${wh.state || ''} ${wh.pincode || ''}`.trim(),
+        locationToPhone: wh.contactPhone || wh.phone || '',
+        locationToGST: wh.gstin || '',
+      }));
+    } else {
+      setDispatchForm(prev => ({
+        ...prev,
+        locationTo: warehouseId,
+      }));
+    }
+  };
 
   const requisitionOptions = requisitions
     .filter((r) => r.status === 'open')
@@ -498,6 +545,17 @@ export default function DispatchPage() {
             <h3 className="font-semibold text-secondary-900 mb-3">
               Location From
             </h3>
+            <div className="grid grid-cols-3 gap-4 mb-3">
+              <AutoComplete
+                label="Select Warehouse"
+                options={warehouseOptions}
+                value={dispatchForm.locationFrom}
+                onChange={handleLocationFromSelect}
+                displayKey="name"
+                valueKey="id"
+                placeholder="Search warehouse..."
+              />
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <FormField
                 label="Address"
@@ -541,6 +599,17 @@ export default function DispatchPage() {
             <h3 className="font-semibold text-secondary-900 mb-3">
               Location To
             </h3>
+            <div className="grid grid-cols-3 gap-4 mb-3">
+              <AutoComplete
+                label="Select Warehouse"
+                options={warehouseOptions}
+                value={dispatchForm.locationTo}
+                onChange={handleLocationToSelect}
+                displayKey="name"
+                valueKey="id"
+                placeholder="Search warehouse..."
+              />
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <FormField
                 label="Address"

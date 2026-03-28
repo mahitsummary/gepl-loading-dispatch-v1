@@ -71,8 +71,16 @@ export default function Dashboard() {
   };
 
   const handleQuickAction = (actionType) => {
-    setQuickActionType(actionType);
-    setShowQuickAction(true);
+    const routes = {
+      grn: '/inward/grn',
+      requisition: '/movement/requisition',
+      dispatch: '/movement/dispatch',
+      receipt: '/movement/receipt',
+      production: '/production/output',
+    };
+    if (routes[actionType]) {
+      window.location.href = routes[actionType];
+    }
   };
 
   const activityIcons = {
@@ -85,6 +93,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {isLoading && (
+        <div className="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <p className="text-sm text-secondary-600">Loading dashboard...</p>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>

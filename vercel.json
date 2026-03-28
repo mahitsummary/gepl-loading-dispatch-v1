@@ -1,7 +1,5 @@
 {
   "framework": "nextjs",
   "buildCommand": "next build",
-  "env": {
-    "NEXT_PUBLIC_GAS_URL": "https://script.google.com/macros/s/AKfycbwEwWJvA5VVI6tTOyyodEyJoIpt6iCxPOxay2Kcfy2ak0Trnw8_fo4d7GDwAUMAotclAg/exec"
-  }
+  "outputDirectory": ".next"
 }

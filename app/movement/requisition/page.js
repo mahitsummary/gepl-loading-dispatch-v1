@@ -229,7 +229,7 @@ export default function RequisitionPage() {
 
   const handleDispatch = (requisition) => {
     // Navigate to dispatch page with requisition context
-    window.location.href = `/app/movement/dispatch?requisition=${requisition.requisitionNumber}`;
+    window.location.href = `/movement/dispatch?requisition=${requisition.requisitionNumber}`;
   };
 
   const handleQRScan = (qrData) => {
@@ -322,8 +322,8 @@ export default function RequisitionPage() {
   }));
 
   const uomOptions = uomList.map((u) => ({
-    id: u.id,
-    name: u.uomName || u.name,
+    id: typeof u === 'string' ? u : (u.id || u),
+    name: typeof u === 'string' ? u : (u.uomName || u.name || u),
   }));
 
   return (

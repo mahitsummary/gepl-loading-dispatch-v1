@@ -104,19 +104,19 @@ export default function DispatchReceiptReconPage() {
 
       // Determine stock adjustment logic based on variance type
       let stockAdjustment = {};
-      if (varianceType === 'dispatch_counting_error') {
+      if (varianceForm.varianceType === 'dispatch_counting_error') {
         // Use receipt qty for stock transactions
         stockAdjustment = {
           sourceQty: lineItem.receiptQty,
           destinationQty: lineItem.receiptQty,
         };
-      } else if (varianceType === 'receipt_counting_error') {
+      } else if (varianceForm.varianceType === 'receipt_counting_error') {
         // Use dispatch qty for stock transactions
         stockAdjustment = {
           sourceQty: lineItem.dispatchQty,
           destinationQty: lineItem.dispatchQty,
         };
-      } else if (varianceType === 'transit_loss') {
+      } else if (varianceForm.varianceType === 'transit_loss') {
         // Reduce from dispatch qty at source, add receipt qty at destination
         stockAdjustment = {
           sourceQty: lineItem.dispatchQty,

@@ -21,6 +21,7 @@ export default function ReceiptPage() {
   const [gatePasses, setGatePasses] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -84,15 +85,17 @@ export default function ReceiptPage() {
         vendorData,
         vehicleData,
         warehouseData,
+        supervisorData,
       ] = await Promise.all([
         api.getReceipts().catch(() => []),
-        api.getDispatches({ status: 'in-transit' }).catch(() => []),
+        api.getDispatches().catch(() => []),
         api.fetchItems().catch(() => []),
         api.getUOMList().catch(() => []),
         api.getOpenGatePasses().catch(() => []),
         api.fetchVendors().catch(() => []),
         api.fetchVehicles().catch(() => []),
         api.fetchWarehouses().catch(() => []),
+        api.fetchSupervisors().catch(() => []),
       ]);
 
       setReceipts(receiptData || []);
@@ -103,6 +106,7 @@ export default function ReceiptPage() {
       setVendors(vendorData || []);
       setVehicles(vehicleData || []);
       setWarehouses(warehouseData || []);
+      setSupervisors(supervisorData || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -253,7 +257,7 @@ export default function ReceiptPage() {
 
       const receiptData = {
         receiptNumber: receiptForm.receiptNumber,
-        dcNumber: receipts.find((r) => r.deliverychallanNumber === receiptForm.deliverychallanNumber)?.dcNumber,
+        dcNumber: dispatches.find((d) => d.id === receiptForm.deliverychallanNumber)?.dcNumber || receiptForm.deliverychallanNumber,
         vendorPocName: receiptForm.vendorPocName,
         vendorPocPhone: receiptForm.vendorPocPhone,
         vendorPocEmail: receiptForm.vendorPocEmail,
@@ -384,7 +388,7 @@ export default function ReceiptPage() {
   ];
 
   const dcOptions = dispatches
-    .filter((d) => d.status === 'in-transit')
+    .filter((d) => d.status === 'Dispatched' || d.status === 'in-transit')
     .map((d) => ({
       id: d.id,
       name: `${d.dcNumber} - Vehicle: ${d.vehicleNumber}`,
@@ -401,15 +405,16 @@ export default function ReceiptPage() {
   }));
 
   const uomOptions = uomList.map((u) => ({
-    id: u.id,
-    name: u.uomName || u.name,
+    id: typeof u === 'string' ? u : (u.id || u),
+    name: typeof u === 'string' ? u : (u.uomName || u.name || u),
   }));
 
-  const securityOptions = [
-    { id: 1, name: 'Security Person 1' },
-    { id: 2, name: 'Security Person 2' },
-    { id: 3, name: 'Security Person 3' },
-  ];
+  const securityOptions = supervisors
+    .filter((s) => s.role === 'Security' || s.department === 'Security' || true)
+    .map((s) => ({
+      id: s.id,
+      name: s.supervisorName || s.Name || s.name || '',
+    }));
 
   const vehicleOptions = vehicles.map((v) => ({
     id: v.id,

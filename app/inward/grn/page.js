@@ -191,7 +191,7 @@ export default function GRNPage() {
       setCurrentLineItem(prev => ({
         ...prev,
         itemCode: item.ItemCode || item.itemCode,
-        itemName: item['Item Description'] || item.itemName || item['Froreign Name'] || '',
+        itemName: item['Item Description'] || item.itemName || item['Foreign Name'] || '',
       }));
     } else if (value) {
       setError('Item not found in Item Master');

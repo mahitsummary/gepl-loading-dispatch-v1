@@ -401,13 +401,15 @@ function transformItem(row) {
     itemCode: row.ItemCode || '',
     itemName: row['Item Description'] || '',
     foreignName: row['Foreign Name'] || '',
-    category: row['Sub Category'] || row['Item Category'] || '',
+    category: row['Item Category'] || row['Sub Category'] || '',
+    subCategory: row['Sub Category'] || '',
     uom: row['Manage Item'] || 'PCS',
-    hsn: row['Material Type'] || '',
-    gstRate: row['ItemsGroupCode'] || '',
+    hsn: row['ItemsGroupCode'] || '',
+    gstRate: row['Shipping'] || '',
+    manufacturer: row['Manufacturer'] || '',
+    materialType: row['Material Type'] || '',
     status: row.Status || 'Active',
-    manufacturer: row.Manufacturer || '',
-    shipping: row.Shipping || ''
+    regionsOfOrigin: row['Regions Of Origin'] || ''
   };
 }
 
@@ -448,16 +450,22 @@ function transformWarehouse(row) {
     id: row['Warehouse Code'] || '',
     warehouseCode: row['Warehouse Code'] || '',
     warehouseName: row['Warehouse Name'] || '',
-    location: row['Internal Key'] || '',
-    city: row['Group Code'] || '',
-    state: row['Inventory Account'] || '',
-    pincode: row['Cost of Goods Sold Account'] || '',
-    managerName: row['Allocation Account'] || '',
-    phone: row['Data Source'] || '',
-    capacity: row['User Signature'] || '',
-    status: row.Locked || 'No',
+    address: row['Address'] || '',
+    city: row['City'] || '',
+    state: row['State'] || '',
+    pincode: row['Pincode'] || '',
+    gstin: row['GSTIN'] || '',
+    contactPhone: row['Contact Phone'] || '',
+    contactEmail: row['Contact Email'] || '',
+    managerName: row['Manager Name'] || '',
+    capacity: row['Capacity'] || '',
+    status: row['Status'] || 'Active',
+    // Keep original keys for dispatch/receipt location auto-fill
     'Warehouse Code': row['Warehouse Code'] || '',
-    'Warehouse Name': row['Warehouse Name'] || ''
+    'Warehouse Name': row['Warehouse Name'] || '',
+    'GSTIN': row['GSTIN'] || '',
+    'Contact Phone': row['Contact Phone'] || '',
+    'Address': row['Address'] || ''
   };
 }
 
@@ -486,17 +494,16 @@ function transformSupervisor(row) {
   return {
     id: row.SupervisorID || '',
     supervisorName: row.Name || '',
-    employeeId: row.SupervisorID || '',
-    email: row.Email || '',
     phone: row.Phone || '',
-    department: row.Role || '',
-    assignedWarehouse: row.Address || '',
+    email: row.Email || '',
+    residentialAddress: row['Residential Address'] || '',
+    role: row.Role || '',
+    assignedWarehouse: row['Assigned Warehouse'] || '',
     status: row.Status || 'Active',
-    // Keep original keys for GRN page compatibility
+    // Keep compatibility keys
     Name: row.Name || '',
-    Role: row.Role || '',
     name: row.Name || '',
-    role: row.Role || ''
+    Role: row.Role || ''
   };
 }
 
@@ -525,13 +532,14 @@ function transformVehicle(row) {
     id: row.VehicleNumber || '',
     vehicleNumber: row.VehicleNumber || '',
     vehicleType: row.VehicleType || '',
-    manufacturer: row.VehicleSize || '',
+    vehicleSize: row.VehicleSize || '',
+    ownerName: row.OwnerName || '',
+    status: row.Status || 'Active',
     registrationDate: row.DateAdded || '',
+    manufacturer: '',
     fitnessExpiryDate: '',
     insuranceExpiryDate: '',
-    capacity: '',
-    ownerName: row.OwnerName || '',
-    status: row.Status || 'Active'
+    capacity: ''
   };
 }
 
@@ -1021,18 +1029,18 @@ function getItems() {
  */
 function addItem(params) {
   const newItem = {
-    'ItemCode': params.ItemCode || params.itemCode || '',
-    'Foreign Name': params.ForeignName || params.foreignName || '',
-    'Item Description': params.ItemDescription || params.itemName || '',
-    'Sub Category': params.SubCategory || params.category || '',
-    'ItemsGroupCode': params.ItemsGroupCode || '',
-    'Shipping': params.Shipping || '',
-    'Manufacturer': params.Manufacturer || '',
-    'Regions Of Origin': params.RegionsOfOrigin || '',
-    'Status': params.Status || 'Active',
-    'Manage Item': params.ManageItem || params.uom || '',
-    'Item Category': params.ItemCategory || params.category || '',
-    'Material Type': params.MaterialType || params.hsn || ''
+    'ItemCode': params.itemCode || params.ItemCode || '',
+    'Foreign Name': params.foreignName || params.ForeignName || '',
+    'Item Description': params.itemName || params.ItemDescription || '',
+    'Sub Category': params.subCategory || params.SubCategory || '',
+    'ItemsGroupCode': params.hsn || params.ItemsGroupCode || '',
+    'Shipping': params.gstRate || params.Shipping || '',
+    'Manufacturer': params.manufacturer || params.Manufacturer || '',
+    'Regions Of Origin': params.regionsOfOrigin || params.RegionsOfOrigin || '',
+    'Status': params.status || params.Status || 'Active',
+    'Manage Item': params.uom || params.ManageItem || '',
+    'Item Category': params.category || params.ItemCategory || '',
+    'Material Type': params.materialType || params.MaterialType || ''
   };
 
   appendRowToSheet('Item Master', newItem);
@@ -1173,12 +1181,13 @@ function addSupervisor(params) {
 function updateSupervisor(params) {
   const keyValue = params.SupervisorID || params.id;
   updateRowInSheet('Supervisor Master', 'SupervisorID', keyValue, {
-    'Name': params.Name || params.supervisorName || '',
-    'Phone': params.Phone || params.phone || '',
-    'Email': params.Email || params.email || '',
-    'Address': params.Address || params.assignedWarehouse || '',
-    'Role': params.Role || params.department || '',
-    'Status': params.Status || 'Active'
+    'Name': params.supervisorName || params.Name || '',
+    'Phone': params.phone || params.Phone || '',
+    'Email': params.email || params.Email || '',
+    'Residential Address': params.residentialAddress || params.ResidentialAddress || '',
+    'Role': params.role || params.Role || '',
+    'Assigned Warehouse': params.assignedWarehouse || params.AssignedWarehouse || '',
+    'Status': params.status || params.Status || 'Active'
   });
 
   return { success: true };
@@ -1245,11 +1254,11 @@ function getVehicles() {
  */
 function addVehicle(params) {
   const newVehicle = {
-    'VehicleNumber': params.VehicleNumber || params.vehicleNumber || '',
-    'VehicleType': params.VehicleType || params.vehicleType || 'Truck',
-    'VehicleSize': params.VehicleSize || params.manufacturer || '',
-    'OwnerName': params.OwnerName || params.ownerName || '',
-    'Status': params.Status || params.status || 'Active',
+    'VehicleNumber': params.vehicleNumber || params.VehicleNumber || '',
+    'VehicleType': params.vehicleType || params.VehicleType || 'Truck',
+    'VehicleSize': params.vehicleSize || params.VehicleSize || '',
+    'OwnerName': params.ownerName || params.OwnerName || params.manufacturer || '',
+    'Status': params.status || params.Status || 'Active',
     'DateAdded': new Date()
   };
 
@@ -1261,12 +1270,12 @@ function addVehicle(params) {
  * Update vehicle
  */
 function updateVehicle(params) {
-  const keyValue = params.VehicleNumber || params.vehicleNumber || params.id;
+  const keyValue = params.vehicleNumber || params.VehicleNumber || params.id;
   updateRowInSheet('Vehicle Master', 'VehicleNumber', keyValue, {
-    'VehicleType': params.VehicleType || params.vehicleType || '',
-    'VehicleSize': params.VehicleSize || params.manufacturer || '',
-    'OwnerName': params.OwnerName || params.ownerName || '',
-    'Status': params.Status || params.status || 'Active'
+    'VehicleType': params.vehicleType || params.VehicleType || '',
+    'VehicleSize': params.vehicleSize || params.VehicleSize || '',
+    'OwnerName': params.ownerName || params.OwnerName || '',
+    'Status': params.status || params.Status || 'Active'
   });
 
   return { success: true };

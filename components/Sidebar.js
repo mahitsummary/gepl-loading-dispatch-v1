@@ -201,7 +201,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-secondary-800 bg-secondary-800 p-4 text-xs text-secondary-400">
-          <p>© 2024 GEPL System</p>
+          <p>© 2025 GEPL System</p>
           <p>v1.0 - Material Tracking</p>
         </div>
       </aside>
