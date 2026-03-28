@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, Eye, Download, QrCode, Scan, Truck, Package, FileText, Camera, Upload } from 'lucide-react';
+import { Plus, Eye, Download, QrCode, Scan, Truck, Package, FileText, Clock } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FormField from '@/components/FormField';
@@ -12,25 +12,6 @@ const QRScanner = dynamic(() => import('@/components/QRScanner'), { ssr: false }
 import StatusBadge from '@/components/StatusBadge';
 import api from '@/lib/api';
 import { formatDate, generateQRData, parseQRData } from '@/lib/utils';
-
-const INITIAL_TRANSACTION = {
-  vendorCode: '',
-  vendorName: '',
-  vendorPOCName: '',
-  vendorPhone: '',
-  vendorEmail: '',
-  poNumber: '',
-  poDate: '',
-  committedDeliveryDate: '',
-  vendorDocNumber: '',
-  vendorDocDate: new Date().toISOString().split('T')[0],
-  receiptDate: new Date().toISOString().split('T')[0],
-  entryDate: new Date().toISOString().split('T')[0],
-  receiverName: '',
-  vehicleNumber: '',
-  invoicePhoto: null,
-  invoicePhotoPreview: '',
-};
 
 const INITIAL_LINE_ITEM = {
   itemCode: '',
@@ -46,15 +27,13 @@ const INITIAL_LINE_ITEM = {
 export default function GRNPage() {
   // Data states
   const [grns, setGrns] = useState([]);
-  const [vendors, setVendors] = useState([]);
   const [items, setItems] = useState([]);
   const [uomList, setUomList] = useState([]);
-  const [supervisors, setSupervisors] = useState([]);
   const [openGatePasses, setOpenGatePasses] = useState([]);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);
-  const [activeStep, setActiveStep] = useState(0); // 0: list, 1: security entry, 2: line items
+  const [activeStep, setActiveStep] = useState(0); // 0: list, 1: line items
   const [showQRModal, setShowQRModal] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
@@ -62,13 +41,13 @@ export default function GRNPage() {
   const [qrStickers, setQrStickers] = useState([]);
   const [error, setError] = useState('');
 
-  // Form states
-  const [transactionData, setTransactionData] = useState(INITIAL_TRANSACTION);
+  // Form states - gate pass data from security
+  const [selectedGatePass, setSelectedGatePass] = useState(null);
   const [gatePassNumber, setGatePassNumber] = useState('');
   const [grnNumber, setGrnNumber] = useState('');
   const [lineItems, setLineItems] = useState([]);
   const [currentLineItem, setCurrentLineItem] = useState(INITIAL_LINE_ITEM);
-  const [uomValidation, setUomValidation] = useState({}); // Track UOM per item code
+  const [uomValidation, setUomValidation] = useState({});
 
   useEffect(() => {
     loadData();
@@ -77,20 +56,24 @@ export default function GRNPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [grnData, vendorData, itemData, uomData, supervisorData, gatePassData] = await Promise.all([
+      const [grnData, itemData, uomData, gatePassData] = await Promise.all([
         api.getGRNs().catch(() => []),
-        api.fetchVendors().catch(() => []),
         api.fetchItems().catch(() => []),
         api.getUOMList().catch(() => []),
-        api.fetchSupervisors().catch(() => []),
         api.getOpenGatePasses().catch(() => []),
       ]);
       setGrns(Array.isArray(grnData) ? grnData : []);
-      setVendors(Array.isArray(vendorData) ? vendorData : []);
       setItems(Array.isArray(itemData) ? itemData : []);
       setUomList(Array.isArray(uomData) ? uomData : ['PCS', 'KG', 'LTR', 'MTR', 'NOS', 'SET', 'BOX', 'ROLL', 'PKT', 'DOZ']);
-      setSupervisors(Array.isArray(supervisorData) ? supervisorData : []);
-      setOpenGatePasses(Array.isArray(gatePassData) ? gatePassData : []);
+      // Filter only purchase-type open gate passes
+      const allGP = Array.isArray(gatePassData) ? gatePassData : [];
+      const purchaseGP = allGP.filter(gp => {
+        const subType = gp.SubType || gp.subType || '';
+        const type = gp.Type || gp.type || '';
+        // Show gate passes that are for purchase inward, or those without subType that are Inward type (backwards compatibility)
+        return subType === 'Purchase' || (type === 'Inward' && subType !== 'Internal');
+      });
+      setOpenGatePasses(purchaseGP);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -98,73 +81,32 @@ export default function GRNPage() {
     }
   };
 
-  // ==================== STEP 1: Security Entry ====================
-  const handleStartNewGRN = () => {
-    setTransactionData({
-      ...INITIAL_TRANSACTION,
-      entryDate: new Date().toISOString().split('T')[0],
-      receiptDate: new Date().toISOString().split('T')[0],
-      vendorDocDate: new Date().toISOString().split('T')[0],
-    });
+  // ==================== Select Gate Pass & Start GRN ====================
+  const handleSelectGatePass = async (gp) => {
+    setSelectedGatePass(gp);
+    setGatePassNumber(gp.GatePassNumber || gp.gatePassNumber || '');
     setLineItems([]);
-    setGatePassNumber('');
-    setGrnNumber('');
-    setActiveStep(1);
+    setQrStickers([]);
     setError('');
-  };
+    setUomValidation({});
 
-  const handleVendorSelect = (vendor) => {
-    if (vendor) {
-      setTransactionData(prev => ({
-        ...prev,
-        vendorCode: vendor['BP Code'] || vendor.BPCode || '',
-        vendorName: vendor['BP Name'] || vendor.BPName || '',
-        vendorPOCName: vendor['Contact Person'] || '',
-        vendorPhone: vendor['Phone'] || '',
-        vendorEmail: vendor['Email'] || '',
-      }));
-    }
-  };
-
-  const handleSecuritySubmit = async () => {
-    // Validate required fields
-    if (!transactionData.vendorName) return setError('Vendor Name is required');
-    if (!transactionData.poNumber) return setError('PO Number is required');
-    if (!transactionData.poDate) return setError('PO Date is required');
-    if (!transactionData.receiverName) return setError('Security Name is required');
-    if (!transactionData.vehicleNumber) return setError('Vehicle Number is required');
-
-    setError('');
     try {
-      // Generate Gate Pass
-      const gpResult = await api.generateGatePass({
-        vehicleNumber: transactionData.vehicleNumber,
-        type: 'Inward',
-      }).catch(() => ({ gatePassNumber: `GP-${Date.now()}` }));
-
-      const gp = gpResult?.gatePassNumber || gpResult?.GatePassNumber || `GP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`;
-      setGatePassNumber(gp);
-
-      // Generate GRN number
       const grnResult = await api.generateGRNNumber().catch(() => `GRN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`);
       const grn = typeof grnResult === 'string' ? grnResult : grnResult?.grnNumber || `GRN-${Date.now()}`;
       setGrnNumber(grn);
-
-      // Move to step 2 (line items entry by supervisor)
-      setActiveStep(2);
+      setActiveStep(1);
     } catch (err) {
-      setError('Failed to generate Gate Pass. Please try again.');
+      setError('Failed to generate GRN number. Please try again.');
       console.error(err);
     }
   };
 
-  // ==================== STEP 2: Supervisor Line Items ====================
+  // ==================== Line Items Entry ====================
   const handleQRScan = (data) => {
     setShowQRScanner(false);
     if (data) {
       const parsed = parseQRData(data);
       if (parsed) {
-        // Find matching item in master
         const matchedItem = items.find(
           i => (i.ItemCode === parsed.itemCode) || (i.itemCode === parsed.itemCode)
         );
@@ -183,21 +125,6 @@ export default function GRNPage() {
     }
   };
 
-  const handleItemCodeChange = (value) => {
-    const item = items.find(
-      i => (i.ItemCode === value || i.itemCode === value)
-    );
-    if (item) {
-      setCurrentLineItem(prev => ({
-        ...prev,
-        itemCode: item.ItemCode || item.itemCode,
-        itemName: item['Item Description'] || item.itemName || item['Foreign Name'] || '',
-      }));
-    } else if (value) {
-      setError('Item not found in Item Master');
-    }
-  };
-
   const handleItemNameSelect = (item) => {
     if (item) {
       setCurrentLineItem(prev => ({
@@ -210,7 +137,6 @@ export default function GRNPage() {
 
   const handleUOMChange = (uom) => {
     const itemCode = currentLineItem.itemCode;
-    // Check if this item already has a UOM recorded
     if (uomValidation[itemCode] && uomValidation[itemCode] !== uom) {
       setError(`UOM mismatch! Item ${itemCode} was previously recorded with UOM: ${uomValidation[itemCode]}. Please use the same UOM.`);
       return;
@@ -231,7 +157,6 @@ export default function GRNPage() {
     if (!currentLineItem.uom) return setError('UOM is required');
     if (!currentLineItem.numberOfPacks) return setError('Number of Packs is required');
 
-    // Validate item exists in master
     const itemExists = items.find(
       i => (i.ItemCode === currentLineItem.itemCode || i.itemCode === currentLineItem.itemCode)
     );
@@ -241,16 +166,13 @@ export default function GRNPage() {
     }
 
     setError('');
-
     const totalQty = calculateTotalQty();
 
-    // Store UOM validation
     setUomValidation(prev => ({
       ...prev,
       [currentLineItem.itemCode]: currentLineItem.uom,
     }));
 
-    // Generate batch ID
     let batchId = '';
     try {
       const batchResult = await api.generateBatchID().catch(() => `BAT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(lineItems.length + 1).padStart(3, '0')}`);
@@ -267,7 +189,6 @@ export default function GRNPage() {
       grnStickerGenerated: currentLineItem.generateQR ? 'Yes' : 'No',
     };
 
-    // Generate QR stickers if requested (one per pack)
     if (currentLineItem.generateQR) {
       const newStickers = [];
       for (let i = 1; i <= parseInt(currentLineItem.numberOfPacks); i++) {
@@ -288,12 +209,7 @@ export default function GRNPage() {
     }
 
     setLineItems(prev => [...prev, newLineItem]);
-
-    // Reset form but pre-fill same item's UOM for next entry
-    setCurrentLineItem({
-      ...INITIAL_LINE_ITEM,
-      // Pre-fill from previous if same item scanned again
-    });
+    setCurrentLineItem({ ...INITIAL_LINE_ITEM });
   };
 
   const handleRemoveLineItem = (index) => {
@@ -307,9 +223,21 @@ export default function GRNPage() {
     }
 
     try {
-      // Create the GRN transaction
       const grnData = {
-        ...transactionData,
+        vendorCode: selectedGatePass?.VendorCode || selectedGatePass?.vendorCode || '',
+        vendorName: selectedGatePass?.VendorName || selectedGatePass?.vendorName || '',
+        vendorPOCName: selectedGatePass?.VendorPOCName || selectedGatePass?.vendorPOCName || '',
+        vendorPhone: selectedGatePass?.VendorPhone || selectedGatePass?.vendorPhone || '',
+        vendorEmail: selectedGatePass?.VendorEmail || selectedGatePass?.vendorEmail || '',
+        poNumber: selectedGatePass?.PONumber || selectedGatePass?.poNumber || '',
+        poDate: selectedGatePass?.PODate || selectedGatePass?.poDate || '',
+        committedDeliveryDate: selectedGatePass?.CommittedDeliveryDate || selectedGatePass?.committedDeliveryDate || '',
+        vendorDocNumber: selectedGatePass?.VendorDocNumber || selectedGatePass?.vendorDocNumber || '',
+        vendorDocDate: selectedGatePass?.VendorDocDate || selectedGatePass?.vendorDocDate || '',
+        receiptDate: selectedGatePass?.ReceiptDate || selectedGatePass?.receiptDate || '',
+        entryDate: selectedGatePass?.EntryDate || selectedGatePass?.entryDate || '',
+        receiverName: selectedGatePass?.ReceiverName || selectedGatePass?.receiverName || '',
+        vehicleNumber: selectedGatePass?.VehicleNumber || selectedGatePass?.vehicleNumber || '',
         grnNumber,
         gatePassNumber,
         lineItems,
@@ -321,7 +249,9 @@ export default function GRNPage() {
         console.log('GRN saved locally');
       });
 
-      // Refresh data
+      // Close the gate pass
+      await api.closeGatePass({ gatePassNumber }).catch(() => {});
+
       await loadData();
       setActiveStep(0);
       setShowPDFPreview(true);
@@ -332,22 +262,12 @@ export default function GRNPage() {
     }
   };
 
-  // ==================== Vendor options ====================
-  const vendorOptions = vendors.map(v => ({
-    ...v,
-    label: `${v['BP Code'] || v.BPCode || ''} - ${v['BP Name'] || v.BPName || ''}`,
-    value: v['BP Code'] || v.BPCode || v.id,
-  }));
-
+  // ==================== Options ====================
   const itemOptions = items.map(i => ({
     ...i,
     label: `${i.ItemCode || i.itemCode || ''} - ${i['Item Description'] || i.itemName || ''}`,
     value: i.ItemCode || i.itemCode || i.id,
   }));
-
-  const securityOptions = supervisors
-    .filter(s => s.Role === 'Security' || s.role === 'Security')
-    .map(s => ({ label: s.Name || s.name, value: s.Name || s.name }));
 
   // ==================== GRN List Columns ====================
   const columns = [
@@ -381,32 +301,61 @@ export default function GRNPage() {
 
   // ==================== RENDER ====================
 
-  // Step 0: GRN List
+  // Step 0: GRN List + Open Gate Passes
   if (activeStep === 0) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Inward from Purchase (GRN)</h1>
-            <p className="text-gray-500 mt-1">Record goods received from external vendors</p>
+            <p className="text-gray-500 mt-1">Select an open gate pass to record items received from vendors</p>
           </div>
-          <button onClick={handleStartNewGRN}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm">
-            <Truck size={20} /> New Inward Entry
-          </button>
         </div>
 
-        {/* Open Gate Passes */}
-        {openGatePasses.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <h3 className="font-semibold text-amber-800 mb-2">Open Gate Passes</h3>
-            <div className="flex flex-wrap gap-2">
+        {/* Open Gate Passes - Clickable cards for supervisor to pick */}
+        {openGatePasses.length > 0 ? (
+          <div id="open-gate-passes-section" className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <h3 className="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+              <Clock size={18} />
+              Open Gate Passes - Select to Start GRN ({openGatePasses.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {openGatePasses.map((gp, i) => (
-                <span key={i} className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
-                  {gp.GatePassNumber} | {gp.VehicleNumber}
-                </span>
+                <button
+                  key={i}
+                  onClick={() => handleSelectGatePass(gp)}
+                  className="flex flex-col gap-1 p-4 bg-white border border-amber-300 rounded-lg hover:border-indigo-500 hover:shadow-md transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-semibold text-gray-900 group-hover:text-indigo-600">
+                      {gp.GatePassNumber || gp.gatePassNumber || 'N/A'}
+                    </span>
+                    <StatusBadge status="Open" />
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">Vendor:</span> {gp.VendorName || gp.vendorName || 'N/A'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">PO:</span> {gp.PONumber || gp.poNumber || 'N/A'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">Vehicle:</span> {gp.VehicleNumber || gp.vehicleNumber || 'N/A'}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {formatDate(gp.Date || gp.date || gp.ReceiptDate || gp.receiptDate)}
+                  </div>
+                  <div className="text-xs text-indigo-600 font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to start GRN entry
+                  </div>
+                </button>
               ))}
             </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+            <Package size={32} className="mx-auto text-gray-400 mb-2" />
+            <p className="text-gray-600 font-medium">No open gate passes available</p>
+            <p className="text-gray-400 text-sm mt-1">Security must create a gate pass first from the Gate Pass page</p>
           </div>
         )}
 
@@ -485,170 +434,14 @@ export default function GRNPage() {
     );
   }
 
-  // Step 1: Security Transaction Entry
+  // Step 1: Supervisor Line Items Entry (selected gate pass)
   if (activeStep === 1) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">New Inward Entry - Security Gate</h1>
-            <p className="text-gray-500 mt-1">Step 1: Record vehicle and vendor invoice details</p>
-          </div>
-          <button onClick={() => setActiveStep(0)} className="text-gray-500 hover:text-gray-700">Cancel</button>
-        </div>
-
-        {/* Progress bar */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-2 bg-indigo-600 rounded-full"></div>
-          <div className="flex-1 h-2 bg-gray-200 rounded-full"></div>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</div>
-        )}
-
-        <div className="bg-white rounded-xl shadow-sm border p-6 space-y-6">
-          <h3 className="font-semibold text-gray-800 border-b pb-2">Vendor Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name *</label>
-              <AutoComplete
-                options={vendorOptions}
-                value={transactionData.vendorCode}
-                onChange={(val) => {
-                  const vendor = vendors.find(v => (v['BP Code'] || v.BPCode) === val);
-                  handleVendorSelect(vendor);
-                }}
-                displayKey="label"
-                valueKey="value"
-                placeholder="Search vendor..."
-              />
-            </div>
-            <FormField label="Vendor POC Name" value={transactionData.vendorPOCName}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, vendorPOCName: e.target.value }))} />
-            <FormField label="Vendor Phone" value={transactionData.vendorPhone}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, vendorPhone: e.target.value }))} />
-            <FormField label="Vendor Email" value={transactionData.vendorEmail}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, vendorEmail: e.target.value }))} />
-          </div>
-
-          <h3 className="font-semibold text-gray-800 border-b pb-2 pt-4">Purchase Order Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="PO Number *" value={transactionData.poNumber}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, poNumber: e.target.value }))}
-              placeholder="Enter PO Number" required />
-            <FormField label="PO Date *" type="date" value={transactionData.poDate}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, poDate: e.target.value }))} required />
-            <FormField label="Committed Delivery Date" type="date" value={transactionData.committedDeliveryDate}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, committedDeliveryDate: e.target.value }))} />
-          </div>
-
-          <h3 className="font-semibold text-gray-800 border-b pb-2 pt-4">Document Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Vendor Document Number" value={transactionData.vendorDocNumber}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, vendorDocNumber: e.target.value }))} />
-            <FormField label="Vendor Document Date" type="date" value={transactionData.vendorDocDate}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, vendorDocDate: e.target.value }))} />
-            <FormField label="Receipt Date" type="date" value={transactionData.receiptDate}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, receiptDate: e.target.value }))} />
-            <FormField label="Entry Date" type="date" value={transactionData.entryDate} disabled />
-
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-secondary-700 mb-1">
-                Photo of Invoice
-              </label>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 px-4 py-2 bg-secondary-100 text-secondary-700 rounded-lg hover:bg-secondary-200 transition-colors cursor-pointer">
-                  <Camera size={18} />
-                  <span>Take Photo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setTransactionData(prev => ({ ...prev, invoicePhoto: file, invoicePhotoPreview: reader.result }));
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
-                <label className="flex items-center gap-2 px-4 py-2 bg-secondary-100 text-secondary-700 rounded-lg hover:bg-secondary-200 transition-colors cursor-pointer">
-                  <Upload size={18} />
-                  <span>Upload</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setTransactionData(prev => ({ ...prev, invoicePhoto: file, invoicePhotoPreview: reader.result }));
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-              {transactionData.invoicePhotoPreview && (
-                <div className="mt-2">
-                  <img src={transactionData.invoicePhotoPreview} alt="Invoice" className="max-h-40 rounded border" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <h3 className="font-semibold text-gray-800 border-b pb-2 pt-4">Gate Entry Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name of Receiver (Security) *</label>
-              {securityOptions.length > 0 ? (
-                <AutoComplete options={securityOptions} value={transactionData.receiverName}
-                  onChange={(val) => setTransactionData(prev => ({ ...prev, receiverName: val }))}
-                  displayKey="label" valueKey="value" placeholder="Select security..." />
-              ) : (
-                <input type="text" value={transactionData.receiverName}
-                  onChange={(e) => setTransactionData(prev => ({ ...prev, receiverName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Enter security name" />
-              )}
-            </div>
-            <FormField label="Vehicle Number *" value={transactionData.vehicleNumber}
-              onChange={(e) => setTransactionData(prev => ({ ...prev, vehicleNumber: e.target.value.toUpperCase() }))}
-              placeholder="e.g., KA-01-AB-1234" required />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <button onClick={() => setActiveStep(0)}
-            className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
-            Cancel
-          </button>
-          <button onClick={handleSecuritySubmit}
-            className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm">
-            Generate Gate Pass & Proceed
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 2: Supervisor Line Items Entry
-  if (activeStep === 2) {
     return (
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Add Items - Unloading</h1>
-            <p className="text-gray-500 mt-1">Step 2: Scan or enter items being unloaded</p>
+            <p className="text-gray-500 mt-1">Scan or enter items being unloaded</p>
           </div>
           <div className="text-right">
             <div className="text-sm text-gray-500">Gate Pass</div>
@@ -656,35 +449,16 @@ export default function GRNPage() {
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-2 bg-indigo-600 rounded-full"></div>
-          <div className="flex-1 h-2 bg-indigo-600 rounded-full"></div>
-        </div>
-
-        {/* Summary bar */}
+        {/* Summary bar - info from gate pass */}
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-center justify-between">
-          <div className="flex gap-6 text-sm">
+          <div className="flex gap-6 text-sm flex-wrap">
             <span><strong>GRN:</strong> {grnNumber}</span>
-            <span><strong>Vendor:</strong> {transactionData.vendorName}</span>
-            <span><strong>PO:</strong> {transactionData.poNumber}</span>
-            <span><strong>Vehicle:</strong> {transactionData.vehicleNumber}</span>
+            <span><strong>Vendor:</strong> {selectedGatePass?.VendorName || selectedGatePass?.vendorName || 'N/A'}</span>
+            <span><strong>PO:</strong> {selectedGatePass?.PONumber || selectedGatePass?.poNumber || 'N/A'}</span>
+            <span><strong>Vehicle:</strong> {selectedGatePass?.VehicleNumber || selectedGatePass?.vehicleNumber || 'N/A'}</span>
+            <span><strong>Security:</strong> {selectedGatePass?.ReceiverName || selectedGatePass?.receiverName || 'N/A'}</span>
           </div>
         </div>
-
-        {/* Open Gate Passes */}
-        {openGatePasses.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <h3 className="font-semibold text-amber-800 mb-2">Open Gate Passes</h3>
-            <div className="flex flex-wrap gap-2">
-              {openGatePasses.map((gp, i) => (
-                <span key={i} className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
-                  {gp.GatePassNumber || gp.gatePassNumber} | {gp.VehicleNumber || gp.vehicleNumber}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</div>
@@ -852,12 +626,12 @@ export default function GRNPage() {
 
         {/* Action Buttons */}
         <div className="flex justify-between">
-          <button onClick={() => setActiveStep(1)}
+          <button onClick={() => { setActiveStep(0); setSelectedGatePass(null); }}
             className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
-            Back to Gate Entry
+            Back to Gate Pass List
           </button>
           <div className="flex gap-3">
-            <button onClick={() => setActiveStep(0)}
+            <button onClick={() => { setActiveStep(0); setSelectedGatePass(null); }}
               className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
               Cancel
             </button>

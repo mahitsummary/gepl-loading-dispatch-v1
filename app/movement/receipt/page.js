@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, Trash2, Eye, Download, AlertCircle, CheckCircle, X, ShieldCheck, ClipboardList, Truck, Package } from 'lucide-react';
+import { Plus, Trash2, Eye, Download, AlertCircle, CheckCircle, X, ClipboardList, Truck, Package, Clock } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FormField from '@/components/FormField';
@@ -18,7 +18,6 @@ export default function ReceiptPage() {
   const [dispatches, setDispatches] = useState([]);
   const [items, setItems] = useState([]);
   const [uomList, setUomList] = useState([]);
-  const [vendors, setVendors] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -26,7 +25,6 @@ export default function ReceiptPage() {
 
   // UI State
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [showLineItemModal, setShowLineItemModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showVarianceModal, setShowVarianceModal] = useState(false);
@@ -35,18 +33,6 @@ export default function ReceiptPage() {
   const [editingLineItem, setEditingLineItem] = useState(null);
   const [varianceData, setVarianceData] = useState(null);
   const [openInwardGatePasses, setOpenInwardGatePasses] = useState([]);
-
-  // Security gate pass form
-  const [securityForm, setSecurityForm] = useState({
-    deliverychallanNumber: null,
-    requisitionNumber: '',
-    requisitionDate: '',
-    dcDate: '',
-    receiptDate: getCurrentDate(),
-    entryDate: getCurrentDate(),
-    receiverName: null,
-    vehicleNumber: null,
-  });
 
   // Form data
   const [receiptForm, setReceiptForm] = useState({
@@ -91,8 +77,6 @@ export default function ReceiptPage() {
         dispatchData,
         itemData,
         uomData,
-        gatePassData,
-        vendorData,
         vehicleData,
         warehouseData,
         supervisorData,
@@ -101,8 +85,6 @@ export default function ReceiptPage() {
         api.getDispatches().catch(() => []),
         api.fetchItems().catch(() => []),
         api.getUOMList().catch(() => []),
-        api.getOpenGatePasses().catch(() => []),
-        api.fetchVendors().catch(() => []),
         api.fetchVehicles().catch(() => []),
         api.fetchWarehouses().catch(() => []),
         api.fetchSupervisors().catch(() => []),
@@ -112,7 +94,6 @@ export default function ReceiptPage() {
       setDispatches(dispatchData || []);
       setItems(itemData || []);
       setUomList(uomData || []);
-      setVendors(vendorData || []);
       setVehicles(vehicleData || []);
       setWarehouses(warehouseData || []);
       setSupervisors(supervisorData || []);
@@ -126,102 +107,6 @@ export default function ReceiptPage() {
       console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleStartReceipt = () => {
-    if (openInwardGatePasses.length === 0) {
-      alert('No open inward gate passes available. Security must create a gate pass first.');
-      return;
-    }
-    // Scroll to the open gate passes section
-    const section = document.getElementById('open-gate-passes-section');
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  // Security Gate Pass flow
-  const handleOpenSecurityModal = () => {
-    setSecurityForm({
-      deliverychallanNumber: null,
-      requisitionNumber: '',
-      requisitionDate: '',
-      dcDate: '',
-      receiptDate: getCurrentDate(),
-      entryDate: getCurrentDate(),
-      receiverName: null,
-      vehicleNumber: null,
-    });
-    setShowSecurityModal(true);
-  };
-
-  const handleSecurityDCSelection = (dcId) => {
-    const dispatch = dispatches.find((d) => d.id === dcId);
-    if (dispatch) {
-      setSecurityForm({
-        ...securityForm,
-        deliverychallanNumber: dcId,
-        requisitionNumber: dispatch.requisitionNumber || '',
-        requisitionDate: dispatch.requisitionDate || '',
-        dcDate: dispatch.dispatchDate || '',
-        vehicleNumber: vehicles.find((v) => v.vehicleNumber === dispatch.vehicleNumber)?.id || null,
-      });
-    }
-  };
-
-  const handleSecuritySubmit = async () => {
-    if (!securityForm.deliverychallanNumber) {
-      alert('Please select a Delivery Challan');
-      return;
-    }
-    if (!securityForm.receiverName) {
-      alert('Please select Receiver Name (Security)');
-      return;
-    }
-    if (!securityForm.vehicleNumber) {
-      alert('Please select Vehicle Number');
-      return;
-    }
-
-    try {
-      // Generate gate pass
-      const gpResult = await api.generateGatePass({
-        vehicleNumber: vehicles.find((v) => v.id === securityForm.vehicleNumber)?.vehicleNumber,
-        type: 'Inward',
-      }).catch(() => ({ gatePassNumber: `GP-INW-${Date.now()}` }));
-
-      const gatePassNumber = gpResult?.gatePassNumber || gpResult?.GatePassNumber || `GP-INW-${Date.now()}`;
-
-      // Generate receipt number
-      const receiptNumber = await api.generateReceiptNumber().catch(() => `RCP-${Date.now()}`);
-
-      const dispatch = dispatches.find((d) => d.id === securityForm.deliverychallanNumber);
-
-      // Create receipt header with status 'Open'
-      const receiptData = {
-        receiptNumber,
-        dcNumber: dispatch?.dcNumber || securityForm.deliverychallanNumber,
-        requisitionNumber: securityForm.requisitionNumber,
-        receiptDate: securityForm.receiptDate,
-        entryDate: securityForm.entryDate,
-        receiverName: securityForm.receiverName,
-        vehicleNumber: vehicles.find((v) => v.id === securityForm.vehicleNumber)?.vehicleNumber,
-        gatePassNumber,
-        status: 'Open',
-        lineItems: [],
-      };
-
-      await api.createReceipt(receiptData).catch(() => {
-        console.log('Receipt header saved locally');
-      });
-
-      setShowSecurityModal(false);
-      await loadData();
-      alert(`Gate Pass ${gatePassNumber} created successfully! Receipt ${receiptNumber} is now open for supervisor counting.`);
-    } catch (error) {
-      console.error('Error creating gate pass:', error);
-      alert('Error creating gate pass. Please try again.');
     }
   };
 
@@ -481,13 +366,6 @@ export default function ReceiptPage() {
     },
   ];
 
-  const dcOptions = dispatches
-    .filter((d) => d.status === 'Dispatched' || d.status === 'in-transit')
-    .map((d) => ({
-      id: d.id,
-      name: `${d.dcNumber} - Vehicle: ${d.vehicleNumber}`,
-    }));
-
   const itemOptions = items.map((i) => ({
     id: i.id,
     name: `${i.itemCode} - ${i.itemName}`,
@@ -498,18 +376,6 @@ export default function ReceiptPage() {
     name: typeof u === 'string' ? u : (u.uomName || u.name || u),
   }));
 
-  const securityOptions = supervisors
-    .filter((s) => s.role === 'Security' || s.department === 'Security' || true)
-    .map((s) => ({
-      id: s.id,
-      name: s.supervisorName || s.Name || s.name || '',
-    }));
-
-  const vehicleOptions = vehicles.map((v) => ({
-    id: v.id,
-    name: v.vehicleNumber,
-  }));
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -518,33 +384,17 @@ export default function ReceiptPage() {
             Internal Receipt
           </h1>
           <p className="text-secondary-600 mt-1">
-            Record receipt of dispatched materials
+            Select an open gate pass to record receipt of dispatched materials
           </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleOpenSecurityModal}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
-          >
-            <ShieldCheck size={20} />
-            Security - Create Gate Pass
-          </button>
-          <button
-            onClick={handleStartReceipt}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-          >
-            <ClipboardList size={20} />
-            Supervisor - Record Inward
-          </button>
         </div>
       </div>
 
       {/* Open Inward Gate Passes */}
-      {openInwardGatePasses.length > 0 && (
+      {openInwardGatePasses.length > 0 ? (
         <div id="open-gate-passes-section" className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <h3 className="font-semibold text-amber-800 mb-3 flex items-center gap-2">
-            <Truck size={18} />
-            Open Inward Gate Passes - Pending Supervisor Counting
+            <Clock size={18} />
+            Open Inward Gate Passes - Select to Start Counting ({openInwardGatePasses.length})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {openInwardGatePasses.map((gp, i) => (
@@ -577,6 +427,12 @@ export default function ReceiptPage() {
               </button>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+          <Package size={32} className="mx-auto text-gray-400 mb-2" />
+          <p className="text-gray-600 font-medium">No open gate passes available</p>
+          <p className="text-gray-400 text-sm mt-1">Security must create a gate pass first from the Gate Pass page</p>
         </div>
       )}
 
@@ -874,111 +730,6 @@ export default function ReceiptPage() {
             onScan={handleQRScan}
             onError={(error) => setScanError(error)}
           />
-        </div>
-      </Modal>
-
-      {/* Security Gate Pass Modal */}
-      <Modal
-        isOpen={showSecurityModal}
-        onClose={() => setShowSecurityModal(false)}
-        title="Security - Create Inward Gate Pass"
-        size="xl"
-        actions={[
-          {
-            label: 'Cancel',
-            variant: 'secondary',
-            onClick: () => setShowSecurityModal(false),
-          },
-          {
-            label: 'Create Gate Pass',
-            onClick: handleSecuritySubmit,
-          },
-        ]}
-      >
-        <div className="space-y-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-            <ShieldCheck size={16} className="inline mr-2" />
-            Security: Select the Delivery Challan for the arriving vehicle. A gate pass and receipt header will be created for supervisor counting.
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <AutoComplete
-              label="Delivery Challan (Scan DC QR or Select)"
-              options={dcOptions}
-              value={securityForm.deliverychallanNumber}
-              onChange={handleSecurityDCSelection}
-              displayKey="name"
-              valueKey="id"
-              required
-            />
-            <FormField
-              label="Receipt Date"
-              type="date"
-              value={securityForm.receiptDate}
-              onChange={(e) =>
-                setSecurityForm({ ...securityForm, receiptDate: e.target.value })
-              }
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label="Entry Date"
-              type="date"
-              value={securityForm.entryDate}
-              disabled
-              readOnly
-            />
-            <FormField
-              label="Requisition Number (Auto)"
-              value={securityForm.requisitionNumber}
-              disabled
-              readOnly
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label="Requisition Date (Auto)"
-              type="date"
-              value={securityForm.requisitionDate}
-              disabled
-              readOnly
-            />
-            <FormField
-              label="DC Date (Auto)"
-              type="date"
-              value={securityForm.dcDate}
-              disabled
-              readOnly
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <AutoComplete
-              label="Receiver Name (Security)"
-              options={securityOptions}
-              value={securityForm.receiverName}
-              onChange={(value) =>
-                setSecurityForm({ ...securityForm, receiverName: value })
-              }
-              displayKey="name"
-              valueKey="id"
-              required
-            />
-            <AutoComplete
-              label="Vehicle Number"
-              options={vehicleOptions}
-              value={securityForm.vehicleNumber}
-              onChange={(value) =>
-                setSecurityForm({ ...securityForm, vehicleNumber: value })
-              }
-              displayKey="name"
-              valueKey="id"
-              required
-            />
-          </div>
         </div>
       </Modal>
 
