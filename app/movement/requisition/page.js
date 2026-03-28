@@ -232,6 +232,27 @@ export default function RequisitionPage() {
     window.location.href = `/app/movement/dispatch?requisition=${requisition.requisitionNumber}`;
   };
 
+  const handleQRScan = (qrData) => {
+    try {
+      const parsed = parseQRData(qrData);
+      const item = items.find((i) => i.itemCode === parsed.itemCode);
+      if (item) {
+        setLineItemForm({
+          ...lineItemForm,
+          itemCode: item.id,
+          itemName: item.itemName,
+          uom: item.uom || null,
+        });
+        setScanError('');
+      } else {
+        setScanError('Item not found in system');
+      }
+    } catch (error) {
+      setScanError('Invalid QR code format');
+    }
+    setShowQRModal(false);
+  };
+
   const columns = [
     { key: 'requisitionNumber', label: 'Req. #' },
     { key: 'requestedBy', label: 'Requested By' },
@@ -480,13 +501,21 @@ export default function RequisitionPage() {
               <h3 className="font-semibold text-secondary-900">
                 Line Items
               </h3>
-              <button
-                onClick={handleAddLineItem}
-                className="flex items-center gap-1 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
-              >
-                <Plus size={16} />
-                Add Item
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddLineItem}
+                  className="flex items-center gap-1 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                >
+                  <Plus size={16} />
+                  Add Item
+                </button>
+                <button
+                  onClick={() => setShowQRModal(true)}
+                  className="px-3 py-1 text-sm bg-secondary-600 text-white rounded hover:bg-secondary-700 transition-colors"
+                >
+                  Scan QR
+                </button>
+              </div>
             </div>
 
             {requisitionForm.lineItems.length > 0 ? (
@@ -741,6 +770,27 @@ export default function RequisitionPage() {
               ))}
             </div>
           </div>
+        </div>
+      </Modal>
+
+      {/* QR Scanner Modal */}
+      <Modal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        title="Scan QR Code"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {scanError && (
+            <div className="flex gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">{scanError}</p>
+            </div>
+          )}
+          <QRScanner
+            onScan={handleQRScan}
+            onError={(error) => setScanError(error)}
+          />
         </div>
       </Modal>
 

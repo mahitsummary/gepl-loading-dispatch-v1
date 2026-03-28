@@ -247,6 +247,38 @@ export default function ItemsMaster() {
             }
             placeholder="e.g., 18"
           />
+          <FormField
+            label="Manufacturer"
+            value={formData.manufacturer}
+            onChange={(e) =>
+              setFormData({ ...formData, manufacturer: e.target.value })
+            }
+            placeholder="e.g., ABC Industries"
+          />
+          <FormField
+            label="Material Type"
+            type="select"
+            value={formData.materialType}
+            onChange={(e) =>
+              setFormData({ ...formData, materialType: e.target.value })
+            }
+            options={[
+              { value: 'Imported', label: 'Imported' },
+              { value: 'Domestic', label: 'Domestic' },
+            ]}
+          />
+          <FormField
+            label="Status"
+            type="select"
+            value={formData.status}
+            onChange={(e) =>
+              setFormData({ ...formData, status: e.target.value })
+            }
+            options={[
+              { value: 'Active', label: 'Active' },
+              { value: 'Inactive', label: 'Inactive' },
+            ]}
+          />
         </div>
       </Modal>
     </div>
