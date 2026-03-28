@@ -18,7 +18,6 @@ export default function ReceiptPage() {
   const [dispatches, setDispatches] = useState([]);
   const [items, setItems] = useState([]);
   const [uomList, setUomList] = useState([]);
-  const [gatePasses, setGatePasses] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
@@ -53,9 +52,6 @@ export default function ReceiptPage() {
   const [receiptForm, setReceiptForm] = useState({
     receiptNumber: '',
     deliverychallanNumber: null,
-    vendorPocName: '',
-    vendorPocPhone: '',
-    vendorPocEmail: '',
     requisitionNumber: '',
     requisitionDate: '',
     dcDate: '',
@@ -116,7 +112,6 @@ export default function ReceiptPage() {
       setDispatches(dispatchData || []);
       setItems(itemData || []);
       setUomList(uomData || []);
-      setGatePasses(gatePassData || []);
       setVendors(vendorData || []);
       setVehicles(vehicleData || []);
       setWarehouses(warehouseData || []);
@@ -134,26 +129,16 @@ export default function ReceiptPage() {
     }
   };
 
-  const handleStartReceipt = async () => {
-    const receiptNumber = await api.generateReceiptNumber().catch(() => '');
-    setReceiptForm({
-      receiptNumber,
-      deliverychallanNumber: null,
-      vendorPocName: '',
-      vendorPocPhone: '',
-      vendorPocEmail: '',
-      requisitionNumber: '',
-      requisitionDate: '',
-      dcDate: '',
-      receiptDate: getCurrentDate(),
-      entryDate: getCurrentDate(),
-      receiverName: null,
-      vehicleNumber: null,
-      gatePassNumber: null,
-      lineItems: [],
-    });
-    setSelectedDispatch(null);
-    setShowReceiptModal(true);
+  const handleStartReceipt = () => {
+    if (openInwardGatePasses.length === 0) {
+      alert('No open inward gate passes available. Security must create a gate pass first.');
+      return;
+    }
+    // Scroll to the open gate passes section
+    const section = document.getElementById('open-gate-passes-section');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   // Security Gate Pass flow
@@ -251,9 +236,6 @@ export default function ReceiptPage() {
     setReceiptForm({
       receiptNumber,
       deliverychallanNumber: dispatch?.id || receipt.dcNumber,
-      vendorPocName: '',
-      vendorPocPhone: '',
-      vendorPocEmail: '',
       requisitionNumber: receipt.requisitionNumber || receipt.RequisitionNumber || '',
       requisitionDate: dispatch?.requisitionDate || '',
       dcDate: dispatch?.dispatchDate || '',
@@ -268,22 +250,6 @@ export default function ReceiptPage() {
     // Set selectedDispatch but supervisor will NOT see the dispatch quantities
     setSelectedDispatch(dispatch || null);
     setShowReceiptModal(true);
-  };
-
-  const handleDCSelection = (dcId) => {
-    const dispatch = dispatches.find((d) => d.id === dcId);
-    if (dispatch) {
-      setSelectedDispatch(dispatch);
-      setReceiptForm({
-        ...receiptForm,
-        deliverychallanNumber: dcId,
-        requisitionNumber: dispatch.requisitionNumber || '',
-        requisitionDate: dispatch.requisitionDate || '',
-        dcDate: dispatch.dispatchDate || '',
-        vendorPocName: dispatch.driverName || '',
-        vehicleNumber: vehicles.find((v) => v.vehicleNumber === dispatch.vehicleNumber)?.id || null,
-      });
-    }
   };
 
   const handleAddLineItem = () => {
@@ -392,9 +358,6 @@ export default function ReceiptPage() {
       const receiptData = {
         receiptNumber: receiptForm.receiptNumber,
         dcNumber: dispatches.find((d) => d.id === receiptForm.deliverychallanNumber)?.dcNumber || receiptForm.deliverychallanNumber,
-        vendorPocName: receiptForm.vendorPocName,
-        vendorPocPhone: receiptForm.vendorPocPhone,
-        vendorPocEmail: receiptForm.vendorPocEmail,
         requisitionNumber: receiptForm.requisitionNumber,
         receiptDate: receiptForm.receiptDate,
         entryDate: receiptForm.entryDate,
@@ -470,9 +433,6 @@ export default function ReceiptPage() {
     setReceiptForm({
       receiptNumber: '',
       deliverychallanNumber: null,
-      vendorPocName: '',
-      vendorPocPhone: '',
-      vendorPocEmail: '',
       requisitionNumber: '',
       requisitionDate: '',
       dcDate: '',
@@ -489,7 +449,7 @@ export default function ReceiptPage() {
   const columns = [
     { key: 'receiptNumber', label: 'Receipt #' },
     { key: 'dcNumber', label: 'DC Number' },
-    { key: 'vendorPocName', label: 'POC Name' },
+    { key: 'gatePassNumber', label: 'Gate Pass #' },
     { key: 'receiverName', label: 'Receiver' },
     { key: 'receiptDate', label: 'Receipt Date', render: (v) => formatDate(v) },
     {
@@ -527,11 +487,6 @@ export default function ReceiptPage() {
       id: d.id,
       name: `${d.dcNumber} - Vehicle: ${d.vehicleNumber}`,
     }));
-
-  const gatePassOptions = gatePasses.map((gp) => ({
-    id: gp.id,
-    name: `${gp.gatePassNumber} - ${gp.vehicleNumber}`,
-  }));
 
   const itemOptions = items.map((i) => ({
     id: i.id,
@@ -586,7 +541,7 @@ export default function ReceiptPage() {
 
       {/* Open Inward Gate Passes */}
       {openInwardGatePasses.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div id="open-gate-passes-section" className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <h3 className="font-semibold text-amber-800 mb-3 flex items-center gap-2">
             <Truck size={18} />
             Open Inward Gate Passes - Pending Supervisor Counting
@@ -630,7 +585,7 @@ export default function ReceiptPage() {
         data={receipts}
         isLoading={isLoading}
         searchable={true}
-        searchableFields={['receiptNumber', 'dcNumber', 'vendorPocName']}
+        searchableFields={['receiptNumber', 'dcNumber', 'gatePassNumber', 'receiverName']}
         pageSize={10}
       />
 
