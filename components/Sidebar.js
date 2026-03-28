@@ -13,6 +13,7 @@ import {
   Settings,
   Menu,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 
 const menuItems = {
@@ -34,6 +35,11 @@ const menuItems = {
       { label: 'Vehicle Master', href: '/masters/vehicles' },
       { label: 'Batch Master', href: '/masters/batches' },
     ],
+  },
+  gatepass: {
+    label: 'SECURITY',
+    icon: ShieldCheck,
+    items: [{ label: 'Gate Pass', href: '/gate-pass' }],
   },
   inward: {
     label: 'INWARD',
@@ -94,6 +100,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const [expandedMenus, setExpandedMenus] = useState({
     dashboard: true,
     masters: false,
+    gatepass: false,
     inward: false,
     movement: false,
     reconciliation: false,
